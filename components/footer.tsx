@@ -32,14 +32,6 @@ const footerLinks = {
   ],
 }
 
-const socialLinks = [
-  { name: "Facebook", href: "#" },
-  { name: "Twitter", href: "#" },
-  { name: "LinkedIn", href: "#" },
-  { name: "Instagram", href: "#" },
-  { name: "YouTube", href: "#" },
-]
-
 export function Footer() {
   return (
     <footer className="border-t border-border bg-card">
@@ -56,16 +48,9 @@ export function Footer() {
               The world&apos;s work marketplace connecting businesses with top freelance talent.
             </p>
             <div className="mt-6 flex gap-4">
-              {socialLinks.map((social) => (
-                
-                  key={social.name}
-                  href={social.href}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label={social.name}
-                >
-                  <Globe className="h-5 w-5" />
-                </a>
-              ))}
+              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                <Globe className="h-5 w-5" />
+              </a>
             </div>
           </div>
           {Object.entries(footerLinks).map(([category, links]) => (
@@ -74,10 +59,7 @@ export function Footer() {
               <ul className="mt-4 space-y-3">
                 {links.map((link) => (
                   <li key={link.name}>
-                    <Link
-                      href={link.href}
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    >
+                    <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                       {link.name}
                     </Link>
                   </li>
