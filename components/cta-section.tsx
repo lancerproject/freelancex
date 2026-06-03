@@ -18,7 +18,7 @@ export function CTASection() {
               Ready to get started?
             </h2>
             <p className="mt-4 text-primary-foreground/80 text-pretty">
-              Join millions of businesses and freelancers already using TalentHub to connect and collaborate.
+              Join millions of businesses and freelancers already using FreelanceX to connect and collaborate.
             </p>
             
             <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">

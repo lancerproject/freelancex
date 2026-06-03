@@ -2,14 +2,14 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { Menu, X, ChevronDown } from "lucide-react"
+import { Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 const navigation = [
   { name: "Find Talent", href: "/freelancers" },
   { name: "Find Work", href: "/jobs" },
-  { name: "Why TalentHub", href: "/about" },
+  { name: "Why FreelanceX", href: "/about" },
   { name: "Enterprise", href: "/enterprise" },
 ]
 
@@ -22,9 +22,9 @@ export function Navbar() {
         <div className="flex items-center gap-x-12">
           <Link href="/" className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-              <span className="text-lg font-bold text-primary-foreground">T</span>
+              <span className="text-lg font-bold text-primary-foreground">F</span>
             </div>
-            <span className="text-xl font-bold">TalentHub</span>
+            <span className="text-xl font-bold">FreelanceX</span>
           </Link>
           <div className="hidden lg:flex lg:gap-x-8">
             {navigation.map((item) => (
@@ -65,7 +65,6 @@ export function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="lg:hidden">
           <div className="space-y-1 border-t border-border px-4 pb-4 pt-2">

@@ -40,9 +40,9 @@ export function Footer() {
           <div className="col-span-2 lg:col-span-1">
             <Link href="/" className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-                <span className="text-lg font-bold text-primary-foreground">T</span>
+                <span className="text-lg font-bold text-primary-foreground">F</span>
               </div>
-              <span className="text-xl font-bold">TalentHub</span>
+              <span className="text-xl font-bold">FreelanceX</span>
             </Link>
             <p className="mt-4 text-sm text-muted-foreground max-w-xs">
               The world&apos;s work marketplace connecting businesses with top freelance talent.
@@ -70,7 +70,7 @@ export function Footer() {
         </div>
         <div className="mt-12 border-t border-border pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} TalentHub. All rights reserved.
+            &copy; {new Date().getFullYear()} FreelanceX. All rights reserved.
           </p>
           <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
             <Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
