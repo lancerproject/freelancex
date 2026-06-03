@@ -1,7 +1,7 @@
 import Link from "next/link"
-import { loginWithGoogle } from "./actions"
+import { loginWithGoogle } from "../../login/actions"
 
-export default function LoginPage() {
+export default function FreelancerRegisterPage() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center bg-white">
       <div className="mb-8">
@@ -11,14 +11,18 @@ export default function LoginPage() {
       </div>
 
       <div className="border rounded-xl p-8 w-full max-w-md shadow-sm">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-          Log in to FreelanceX
+        <h1 className="text-2xl font-bold text-gray-900 mb-2 text-center">
+          Sign up as a Freelancer
         </h1>
+        <p className="text-gray-500 text-center mb-6">
+          Find work and get paid for your skills
+        </p>
 
-        <form action={loginWithGoogle} className="space-y-4">
+        <form action={loginWithGoogle}>
+          <input type="hidden" name="role" value="freelancer" />
           <button
             type="submit"
-            className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded-lg py-3 px-4 hover:bg-gray-50 transition"
+            className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded-lg py-3 px-4 hover:bg-gray-50 transition mb-4"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -30,22 +34,19 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 text-center">
-          <p className="text-gray-500 text-sm">
-            Don&apos;t have a FreelanceX account?{" "}
-            <Link href="/register" className="text-green-600 hover:underline font-medium">
-              Sign Up
-            </Link>
-          </p>
-        </div>
-      </div>
+        <p className="text-center text-gray-500 text-sm mt-4">
+          Already have an account?{" "}
+          <Link href="/login" className="text-blue-600 hover:underline">
+            Log in
+          </Link>
+        </p>
 
-      <div className="mt-8 text-center text-xs text-gray-400">
-        <p>© 2026 FreelanceX. All rights reserved.</p>
-        <div className="flex gap-4 justify-center mt-2">
-          <Link href="/privacy" className="hover:underline">Privacy Policy</Link>
-          <Link href="/terms" className="hover:underline">Terms of Service</Link>
-        </div>
+        <p className="text-center text-gray-500 text-sm mt-2">
+          Want to hire instead?{" "}
+          <Link href="/register/client" className="text-blue-600 hover:underline">
+            Join as Client
+          </Link>
+        </p>
       </div>
     </main>
   )
