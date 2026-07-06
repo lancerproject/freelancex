@@ -1,68 +1,177 @@
-import React from "react";
 import Link from "next/link";
 import { createClient } from "../../lib/supabase-server";
 import { redirect } from "next/navigation";
+import { JobPostMenu } from "@/components/job-post-menu";
 
-export default async function MyJobsPage() {
+export default async function MyJobsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const sp = await searchParams;
   const supabase = await createClient();
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: jobs } = await supabase
+  let query = supabase
     .from("jobs")
-    .select(`
-      *,
-      proposals (
-        id
-      )
-    `)
+    .select(`*, proposals ( id, status )`)
     .eq("client_id", user.id)
     .order("created_at", { ascending: false });
 
+  if (sp.q) query = query.ilike("title", `%${sp.q}%`);
+
+  const { data: jobs } = await query;
+  const list = jobs ?? [];
+
+  const timeAgo = (iso: string) => {
+    if (!iso) return "";
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days} day${days === 1 ? "" : "s"} ago`;
+  };
+  const fmtDate = (iso: string) =>
+    iso
+      ? new Date(iso).toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })
+      : "";
+
   return (
-    <main className="min-h-screen p-8">
-      <h1 className="text-3xl font-bold">
-        My Jobs
-      </h1>
+    <main className="min-h-screen px-4 lg:px-16 py-8 w-full">
+      {/* Tabs */}
+      <div className="flex gap-6 border-b border-border mb-6 text-sm">
+        <span className="pb-2 border-b-2 border-foreground text-foreground font-medium">
+          All job posts
+        </span>
+        <Link
+          href="/contracts"
+          className="pb-2 text-muted-foreground hover:text-foreground"
+        >
+          All contracts
+        </Link>
+      </div>
 
-      <p className="mt-4">
-        Total Jobs: {jobs?.length || 0}
-      </p>
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <h1 className="text-3xl font-bold text-foreground">All job posts</h1>
+        <Link
+          href="/jobs/new"
+          className="bg-primary text-primary-foreground px-5 py-2.5 rounded-full font-semibold hover:opacity-90"
+        >
+          Post a new job
+        </Link>
+      </div>
 
-      <div className="mt-8 space-y-4">
-        {jobs?.map((job) => (
-          <div
-            key={job.id}
-            className="border rounded-lg p-4"
-          >
-            <h2 className="text-xl font-semibold">
-              <Link
-                href={`/jobs/${job.id}`}
-                className="text-blue-600 hover:underline"
-              >
-                {job.title}
-              </Link>
-            </h2>
+      <form method="get" className="mb-4 flex items-center gap-4">
+        <input
+          name="q"
+          defaultValue={sp.q ?? ""}
+          placeholder="Search job postings"
+          className="flex-1 bg-card border border-border text-foreground rounded-full px-5 py-3 focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+      </form>
 
-            <p className="mt-2">
-              {job.description}
-            </p>
+      <div className="divide-y divide-border border-y border-border">
+        {list.map((job) => {
+          const props = (job.proposals as { status?: string }[]) ?? [];
+          const proposalCount = props.length;
+          const hiredCount = props.filter((p) => p.status === "accepted").length;
+          const isDraft = job.status === "draft";
+          const isClosed = job.status === "closed";
 
-            <p className="mt-2 font-medium">
-              Proposals: {job.proposals?.length || 0}
-            </p>
+          let statusLine: string;
+          if (isDraft) statusLine = `Draft · Saved ${fmtDate(job.created_at)}`;
+          else if (isClosed) statusLine = `Closed · ${fmtDate(job.created_at)}`;
+          else statusLine = `Posted ${timeAgo(job.created_at)} by you`;
 
-            <p className="mt-2 font-medium">
-              Budget: ${job.budget}
-            </p>
+          return (
+            <div
+              key={job.id}
+              className="flex flex-col md:flex-row md:items-center gap-4 py-5"
+            >
+              <div className="flex-1 min-w-0">
+                <Link
+                  href={`/jobs/${job.id}`}
+                  className="text-lg font-semibold text-foreground hover:text-primary"
+                >
+                  {job.title}
+                </Link>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {statusLine}
+                </p>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Public · Fixed-price · ${job.budget}
+                </p>
+              </div>
+
+              {!isDraft && (
+                <div className="flex items-center gap-8 text-center">
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      {proposalCount}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Proposals</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">0</p>
+                    <p className="text-xs text-muted-foreground">Messaged</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      {hiredCount}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Hired</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 shrink-0">
+                {isDraft ? (
+                  <Link
+                    href={`/jobs/${job.id}`}
+                    className="border border-primary text-primary px-5 py-2 rounded-full text-sm font-medium hover:bg-primary/10 whitespace-nowrap"
+                  >
+                    Edit draft
+                  </Link>
+                ) : isClosed ? (
+                  <Link
+                    href="/jobs/new"
+                    className="border border-primary text-primary px-5 py-2 rounded-full text-sm font-medium hover:bg-primary/10 whitespace-nowrap"
+                  >
+                    Reuse posting
+                  </Link>
+                ) : (
+                  <Link
+                    href={`/jobs/${job.id}?tab=proposals`}
+                    className="border border-primary text-primary px-5 py-2 rounded-full text-sm font-medium hover:bg-primary/10 whitespace-nowrap"
+                  >
+                    View proposals
+                  </Link>
+                )}
+                <JobPostMenu jobId={job.id} isDraft={isDraft} />
+              </div>
+            </div>
+          );
+        })}
+
+        {list.length === 0 && (
+          <div className="text-center text-muted-foreground py-16">
+            You haven&apos;t posted any jobs yet.{" "}
+            <Link href="/jobs/new" className="text-primary hover:underline">
+              Post a job
+            </Link>
           </div>
-        ))}
+        )}
       </div>
     </main>
   );

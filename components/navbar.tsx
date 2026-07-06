@@ -9,7 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 const navigation = [
   { name: "Find Talent", href: "/freelancers" },
   { name: "Find Work", href: "/jobs" },
-  { name: "Why FreelanceX", href: "/about" },
+  { name: "Why Xwork", href: "/about" },
   { name: "Enterprise", href: "/enterprise" },
 ]
 
@@ -21,10 +21,10 @@ export function Navbar() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 lg:px-8">
         <div className="flex items-center gap-x-12">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-              <span className="text-lg font-bold text-primary-foreground">F</span>
-            </div>
-            <span className="text-xl font-bold">FreelanceX</span>
+            <span className="text-2xl font-bold">
+              <span className="text-primary">X</span>
+              <span className="text-foreground">work</span>
+            </span>
           </Link>
           <div className="hidden lg:flex lg:gap-x-8">
             {navigation.map((item) => (

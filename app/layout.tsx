@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Link from "next/link";
-import { createClient } from "../lib/supabase-server";
 import { ThemeProvider } from "@/components/theme-provider";
+import { createClient } from "../lib/supabase-server";
+import ConditionalNavbar from "@/components/conditional-navbar";
+import { SupportWidget } from "@/components/support-widget";
+import { AppFooter } from "@/components/app-footer";
+import { IdentityBanner } from "@/components/identity-banner";
+import { computeIdentityRequired } from "@/lib/identity";
+import { notify } from "@/lib/notify";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,7 +21,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TalentHub - Freelance Marketplace",
+  title: "Xwork - Freelance Marketplace",
   description: "Connect clients and freelancers",
 };
 
@@ -32,6 +37,15 @@ export default async function RootLayout({
   } = await supabase.auth.getUser();
 
   let unreadCount = 0;
+  let unreadMessages = 0;
+  let showIdentityBanner = false;
+  let role: string | undefined = undefined;
+  let navName: string | undefined = undefined;
+  let avatarUrl: string | undefined = undefined;
+  let onlineForMessages = true;
+  let isAdminUser = false;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let recentNotifications: any[] = [];
 
   if (user) {
     const { count } = await supabase
@@ -41,6 +55,70 @@ export default async function RootLayout({
       .eq("is_read", false);
 
     unreadCount = count || 0;
+
+    // Unread messages = messages in my conversations, not sent by me, not read.
+    const { data: convos } = await supabase
+      .from("conversations")
+      .select("id")
+      .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`);
+    const convoIds = (convos ?? []).map((c) => c.id);
+    if (convoIds.length > 0) {
+      const { count: mc } = await supabase
+        .from("messages")
+        .select("id", { count: "exact", head: true })
+        .in("conversation_id", convoIds)
+        .neq("sender_id", user.id)
+        .eq("read", false);
+      unreadMessages = mc || 0;
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
+    role = profile?.role ?? undefined;
+    navName =
+      profile?.full_name || profile?.username || user.email?.split("@")[0];
+    avatarUrl = profile?.avatar_url ?? undefined;
+    onlineForMessages = profile?.online_for_messages ?? true;
+    isAdminUser = !!profile?.is_admin;
+
+    // Identity banner: only once the freelancer's profile is complete AND
+    // they've applied to a job / waited 1+ day / started a contract.
+    showIdentityBanner = await computeIdentityRequired(
+      supabase,
+      user.id,
+      profile
+    );
+
+    // The first time verification becomes required, drop a notification so the
+    // user sees it in the bell — but only once (deduped by the link).
+    if (showIdentityBanner) {
+      const { count: existing } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("link", "/settings/identity");
+      if ((existing ?? 0) === 0) {
+        await notify(
+          supabase,
+          user.id,
+          "system",
+          "Verify your identity",
+          "Your profile is ready! Verify your identity to start applying and getting paid on Xwork.",
+          "/settings/identity"
+        );
+      }
+    }
+
+    const { data: notifs } = await supabase
+      .from("notifications")
+      .select("id, title, message, link, is_read, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(6);
+    recentNotifications = notifs ?? [];
   }
 
   return (
@@ -52,40 +130,27 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col">
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         >
           {user && (
-            <nav className="bg-background border-b px-8 py-4 flex items-center justify-between z-50">
-              <Link href="/" className="text-xl font-bold text-primary">
-                TalentHub
-              </Link>
-              <div className="flex items-center gap-6">
-                <Link href="/jobs" className="text-muted-foreground hover:text-foreground">
-                  Browse Jobs
-                </Link>
-                <Link href="/contracts" className="text-muted-foreground hover:text-foreground">
-                  Contracts
-                </Link>
-                <Link href="/profile" className="text-muted-foreground hover:text-foreground">
-                  Profile
-                </Link>
-                <Link
-                  href="/notifications"
-                  className="relative text-muted-foreground hover:text-foreground"
-                >
-                  🔔 Notifications
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-2 -right-3 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                      {unreadCount}
-                    </span>
-                  )}
-                </Link>
-              </div>
-            </nav>
+            <ConditionalNavbar
+              userId={user.id}
+              unreadCount={unreadCount}
+              unreadMessages={unreadMessages}
+              role={role}
+              isAdmin={isAdminUser}
+              name={navName}
+              avatarUrl={avatarUrl}
+              notifications={recentNotifications}
+              initialOnline={onlineForMessages}
+            />
           )}
+          {showIdentityBanner && <IdentityBanner />}
           {children}
+          <AppFooter />
+          {user && <SupportWidget />}
         </ThemeProvider>
       </body>
     </html>

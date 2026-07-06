@@ -162,7 +162,7 @@ export function FreelancersSection() {
               <div className="mt-5 flex items-center justify-between pt-4 border-t border-border">
                 <div className="text-sm">
                   <span className="text-muted-foreground">Job Success:</span>{" "}
-                  <span className="font-medium text-green-500">{freelancer.jobSuccess}%</span>
+                  <span className="font-medium text-primary">{freelancer.jobSuccess}%</span>
                 </div>
                 <div className="text-right">
                   <span className="text-xl font-bold">${freelancer.hourlyRate}</span>

@@ -19,7 +19,7 @@ const features = [
   {
     icon: CreditCard,
     title: "Flexible Pricing",
-    description: "Choose from hourly rates or fixed-price contracts. Pay only for quality work delivered.",
+    description: "Fixed-price contracts with milestone payments. Pay only for quality work delivered.",
   },
   {
     icon: Users,

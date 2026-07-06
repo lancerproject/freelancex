@@ -1,54 +1,92 @@
-import Link from "next/link"
+import Link from "next/link";
 
 export default function RegisterPage() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-white">
-      <div className="mb-12">
-        <Link href="/" className="text-2xl font-bold text-gray-900">
-          FreelanceX
+    <main className="min-h-screen flex flex-col bg-white text-neutral-900">
+      <div className="px-8 py-5">
+        <Link href="/" className="text-2xl font-bold">
+          <span className="text-primary">X</span>
+          <span className="text-neutral-900">work</span>
         </Link>
       </div>
 
-      <h1 className="text-4xl font-bold text-gray-900 mb-3">
-        Join as a client or freelancer
-      </h1>
+      <div className="flex-1 flex flex-col items-center justify-center px-4 pb-20">
+        <h1 className="text-4xl lg:text-5xl font-bold text-center">
+          Welcome to Xwork
+        </h1>
+        <p className="text-neutral-500 mt-4 mb-10">Which describes you best?</p>
 
-      <p className="text-gray-500 mb-10">
-        Which describes you best?
-      </p>
-
-      <div className="flex gap-6">
-        <Link href="/register/client">
-          <div className="border-2 border-gray-200 rounded-xl p-8 w-64 cursor-pointer hover:border-blue-500 transition-all group">
-            <div className="w-full h-40 rounded-lg bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-2xl">
+          <Link
+            href="/register/client"
+            className="rounded-2xl border border-neutral-200 p-5 hover:border-primary hover:shadow-md transition group"
+          >
+            <div className="h-44 rounded-xl bg-gradient-to-br from-purple-200 to-fuchsia-200 flex items-center justify-center">
+              <svg
+                className="h-16 w-16 text-neutral-800"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                />
+                <rect
+                  x="14"
+                  y="13"
+                  width="7"
+                  height="6"
+                  rx="1"
+                  strokeWidth={1.5}
+                />
               </svg>
             </div>
-            <p className="text-lg font-semibold text-gray-900">Client →</p>
-            <p className="text-gray-500 text-sm mt-1">Post jobs and hire</p>
-          </div>
-        </Link>
+            <p className="text-lg font-semibold mt-4">Client →</p>
+            <p className="text-neutral-500 text-sm mt-1">Post jobs and hire</p>
+          </Link>
 
-        <Link href="/register/freelancer">
-          <div className="border-2 border-gray-200 rounded-xl p-8 w-64 cursor-pointer hover:border-blue-500 transition-all group">
-            <div className="w-full h-40 rounded-lg bg-gradient-to-br from-yellow-100 to-green-100 flex items-center justify-center mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          <Link
+            href="/register/freelancer"
+            className="rounded-2xl border border-neutral-200 p-5 hover:border-primary hover:shadow-md transition group"
+          >
+            <div className="h-44 rounded-xl bg-gradient-to-br from-purple-200 to-fuchsia-200 flex items-center justify-center">
+              <svg
+                className="h-16 w-16 text-neutral-800"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0z"
+                />
+                <rect
+                  x="4"
+                  y="13"
+                  width="16"
+                  height="7"
+                  rx="1"
+                  strokeWidth={1.5}
+                />
               </svg>
             </div>
-            <p className="text-lg font-semibold text-gray-900">Freelancer →</p>
-            <p className="text-gray-500 text-sm mt-1">Work and get paid</p>
-          </div>
-        </Link>
+            <p className="text-lg font-semibold mt-4">Freelancer →</p>
+            <p className="text-neutral-500 text-sm mt-1">Work and get paid</p>
+          </Link>
+        </div>
+
+        <p className="mt-10 text-neutral-600">
+          Already have an account?{" "}
+          <Link href="/login" className="text-primary hover:underline font-medium">
+            Log in
+          </Link>
+        </p>
       </div>
-
-      <p className="mt-10 text-gray-500">
-        Already have an account?{" "}
-        <Link href="/login" className="text-blue-600 hover:underline font-medium">
-          Log in
-        </Link>
-      </p>
     </main>
-  )
+  );
 }

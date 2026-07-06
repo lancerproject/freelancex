@@ -31,7 +31,7 @@ const categories = [
     description: "iOS, Android, React Native, Flutter",
     icon: Smartphone,
     freelancers: "450K+",
-    color: "bg-green-500/10 text-green-500 dark:bg-green-500/20",
+    color: "bg-primary/10 text-primary dark:bg-primary/20",
   },
   {
     name: "Writing & Content",
