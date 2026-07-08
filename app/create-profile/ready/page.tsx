@@ -69,31 +69,32 @@ export default async function ProfileReadyPage() {
           </div>
         </div>
 
-        {/* Membership — coming soon */}
+        {/* Xwork Pro — live membership offer */}
         <div className="mt-8 rounded-2xl bg-neutral-900 text-white p-7 relative overflow-hidden">
-          <div className="absolute top-4 right-4 text-xs font-bold tracking-wide bg-white/15 rounded-full px-3 py-1">
-            COMING SOON
+          <div className="absolute top-4 right-4 text-xs font-bold tracking-wide bg-primary/25 rounded-full px-3 py-1">
+            $20/MONTH
           </div>
           <p className="text-sm font-semibold text-neutral-300 tracking-wide">
             XWORK PLUS
           </p>
-          <h3 className="text-2xl font-bold mt-1">Premium membership</h3>
+          <h3 className="text-2xl font-bold mt-1">Go Pro</h3>
           <p className="text-neutral-300 mt-2 max-w-lg">
-            Soon you&apos;ll be able to upgrade for extra perks — priority
-            placement, advanced analytics, customizable job alerts and more.
-            We&apos;re putting the finishing touches on it.
+            Keep more of what you earn and get seen first. Pro lowers your
+            service fee from 10% to 5% and unlocks tools to help you win more
+            work. Cancel anytime.
           </p>
           <ul className="mt-4 space-y-1.5 text-neutral-300 text-sm">
-            <li>✦ Priority in client searches</li>
+            <li>✦ Lower 5% service fee (instead of 10%)</li>
+            <li>✦ Priority placement in client searches</li>
             <li>✦ Real-time, customizable job alerts</li>
-            <li>✦ Profile insights &amp; competitor analytics</li>
+            <li>✦ Profile insights &amp; analytics, plus a Pro badge</li>
           </ul>
-          <button
-            disabled
-            className="mt-6 bg-white/20 text-white/70 font-semibold rounded-full px-7 py-3 cursor-not-allowed"
+          <Link
+            href="/settings/membership"
+            className="inline-block mt-6 bg-white text-neutral-900 font-semibold rounded-full px-7 py-3 hover:opacity-90 transition"
           >
-            Coming soon
-          </button>
+            Upgrade to Pro →
+          </Link>
         </div>
 
         <div className="text-center mt-8 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
