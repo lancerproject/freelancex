@@ -170,6 +170,20 @@ export async function deleteJob(jobId: string) {
     redirect("/login");
   }
 
+  // Grab the job title and every freelancer with an open (non-withdrawn)
+  // proposal BEFORE deleting, so we can let them know it's gone.
+  const { data: job } = await supabase
+    .from("jobs")
+    .select("title")
+    .eq("id", jobId)
+    .eq("client_id", user.id)
+    .maybeSingle();
+  const { data: applicants } = await supabase
+    .from("proposals")
+    .select("freelancer_id")
+    .eq("job_id", jobId)
+    .neq("status", "withdrawn");
+
   await supabase
     .from("jobs")
     .delete()
@@ -184,6 +198,19 @@ export async function deleteJob(jobId: string) {
     "Your job posting has been removed.",
     "/my-jobs"
   );
+
+  // Notify each freelancer who had applied that the job was closed.
+  const jobTitle = job?.title ?? "a job";
+  for (const a of applicants ?? []) {
+    await notify(
+      supabase,
+      a.freelancer_id,
+      "proposal",
+      "A job you applied to was closed",
+      `The client closed "${jobTitle}", so your proposal is no longer active.`,
+      "/proposals"
+    );
+  }
 
   redirect("/dashboard");
 }

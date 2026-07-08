@@ -28,7 +28,7 @@ export const NOTIFICATION_CATEGORIES: {
     key: "payments",
     label: "Contracts & payments",
     desc: "Milestones, escrow funding, releases and other payment activity.",
-    types: ["payment", "contract"],
+    types: ["payment", "contract", "payments"],
   },
   {
     key: "reviews",

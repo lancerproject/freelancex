@@ -92,6 +92,28 @@ export async function suspendAccount(params: {
     /* health update is best-effort — never block a suspension */
   }
 
+  // In-app notification so the block also shows in the notifications tray.
+  // Inserted directly (not via notify()) because the security email below is a
+  // must-send alert we always want, independent of the user's email toggle —
+  // routing through notify() here would send it twice.
+  if (status !== "flagged") {
+    try {
+      await admin.from("notifications").insert({
+        user_id: userId,
+        type: "security",
+        title:
+          status === "permanently_suspended"
+            ? "Your Xwork account has been permanently suspended"
+            : "Your Xwork account has been suspended",
+        message: statusBlockMessage(status),
+        link: "/profile",
+        is_read: false,
+      });
+    } catch {
+      /* best-effort — never block a suspension on the notification */
+    }
+  }
+
   // Email the user (best-effort; no-ops if email isn't configured).
   try {
     const { data: prof } = await admin

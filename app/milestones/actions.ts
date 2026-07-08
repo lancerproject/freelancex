@@ -321,7 +321,7 @@ export async function deleteMilestone(
   const supabase = await createClient();
   // Only the client can delete, and only an UNFUNDED milestone (never one
   // that holds escrow or has already been paid).
-  const { milestone } = await guardMilestone(
+  const { contract, milestone } = await guardMilestone(
     supabase,
     milestoneId,
     contractId,
@@ -339,6 +339,15 @@ export async function deleteMilestone(
     .delete()
     .eq("id", milestoneId)
     .eq("contract_id", contractId);
+
+  await notify(
+    supabase,
+    contract.freelancer_id,
+    "contract",
+    "A milestone was removed",
+    `A milestone on "${contract.title}" was removed by the client.`,
+    `/contracts/${contractId}`
+  );
 
   redirect(`/contracts/${contractId}`);
 }
