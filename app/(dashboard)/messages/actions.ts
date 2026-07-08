@@ -3,6 +3,48 @@
 import { createClient } from "@/lib/supabase-server";
 import { detectOffPlatform, recordWarning } from "@/lib/moderation";
 import { isRateLimited } from "@/lib/rate-limit";
+import { notify } from "@/lib/notify";
+
+// Notify the OTHER participant of a conversation about a new message. Creates
+// an in-app notification and (once an email sender is configured) an email,
+// both gated by the recipient's "Messages" notification preference. Best-effort
+// — a failure here never blocks the message from being sent.
+async function notifyRecipient(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  conversationId: string,
+  senderId: string,
+  preview: string
+) {
+  try {
+    const { data: convo } = await supabase
+      .from("conversations")
+      .select("participant_1, participant_2")
+      .eq("id", conversationId)
+      .maybeSingle();
+    const recipientId = convo
+      ? convo.participant_1 === senderId
+        ? convo.participant_2
+        : convo.participant_1
+      : null;
+    if (!recipientId) return;
+    const { data: sender } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", senderId)
+      .maybeSingle();
+    await notify(
+      supabase,
+      recipientId,
+      "message",
+      `New message from ${sender?.full_name || "someone"}`,
+      preview,
+      `/messages/${conversationId}`
+    );
+  } catch {
+    /* never block sending on a notification failure */
+  }
+}
 
 export type SendResult = {
   ok: boolean;
@@ -113,6 +155,13 @@ export async function sendChatMessage(
     .single();
 
   if (error || !data) return { ok: false, error: "Couldn't send your message." };
+
+  await notifyRecipient(
+    supabase,
+    conversationId,
+    user.id,
+    text.length > 140 ? `${text.slice(0, 140)}…` : text
+  );
   return { ok: true, message: data };
 }
 
@@ -167,5 +216,12 @@ export async function sendChatAttachment(
     .single();
 
   if (error || !data) return { ok: false, error: "Couldn't send the file." };
+
+  await notifyRecipient(
+    supabase,
+    conversationId,
+    user.id,
+    `📎 Sent an attachment${attachmentName ? `: ${attachmentName}` : ""}`
+  );
   return { ok: true, message: data };
 }
