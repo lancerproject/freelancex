@@ -1,0 +1,24 @@
+name: Escrow background jobs
+
+# Runs the escrow timers (5-day auto-approve, 3-day clearance, 7-day
+# auto-refund, and the withdrawal payout processor) on a schedule by pinging
+# the app's cron endpoint. Free, and lives in the repo.
+#
+# Setup (one time): add a repository secret named CRON_SECRET whose value is
+# the SAME string set as CRON_SECRET on the Render web service.
+#   GitHub → Settings → Secrets and variables → Actions → New repository secret
+
+on:
+  schedule:
+    - cron: "*/10 * * * *" # every 10 minutes
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+jobs:
+  run-escrow-jobs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger escrow jobs
+        run: |
+          curl -fsS --max-time 60 \
+            "https://thexwork.com/api/cron/escrow?key=${{ secrets.CRON_SECRET }}" \
+            && echo "escrow jobs ran"
