@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
   // 4) Gateway payout processor: push requested withdrawals to the pipe.
   const { data: wds } = await admin
     .from("withdrawals")
-    .select("id, user_id, amount, method")
+    .select("id, user_id, amount, method_label")
     .eq("status", "requested");
   for (const w of wds ?? []) {
     const res = await gateway.payout({

@@ -233,7 +233,7 @@ begin
   select available_balance into avail from wallet_balances where user_id = p_actor;
   if coalesce(avail,0) < p_amount then raise exception 'insufficient available balance (% < %)', avail, p_amount; end if;
 
-  insert into withdrawals(user_id, amount, method, status, idempotency_key, requested_at)
+  insert into withdrawals(user_id, amount, method_label, status, idempotency_key, created_at)
   values (p_actor, p_amount, p_method, 'requested', p_idem, now()) returning id into w;
   insert into escrow_transactions(type, amount, from_party, to_party, created_by, idempotency_key, metadata)
   values ('withdrawal', p_amount, 'freelancer', 'gateway', p_actor,

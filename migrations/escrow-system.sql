@@ -214,7 +214,13 @@ select
     where c.freelancer_id = p.id and t.type = 'release'
       and m.escrow_status = 'PENDING'
   ),0)::numeric(12,2) as pending_balance,
-  -- Available: net releases that have cleared, minus withdrawals.
+  -- Available: net releases that have cleared, minus money withdrawn.
+  -- Withdrawals are subtracted from the withdrawals table (excluding failed
+  -- payouts, which never left the balance) — this is the SAME source of truth
+  -- as lib/earnings.ts, and it is what the withdrawal guard reads to block a
+  -- double-withdraw. (Do NOT subtract from the ledger by to_party='freelancer':
+  -- a withdrawal ledger row is from_party='freelancer'/to_party='gateway', so
+  -- that filter matched zero rows and left the balance un-debited.)
   coalesce((
     select sum(t.amount) from escrow_transactions t
     join milestones m on m.id = t.milestone_id
@@ -223,8 +229,7 @@ select
       and m.escrow_status in ('AVAILABLE','WITHDRAWN')
   ),0)::numeric(12,2)
   - coalesce((
-    select sum(t.amount) from escrow_transactions t
-    where t.to_party = 'freelancer' and t.type = 'withdrawal'
-      and t.created_by = p.id
+    select sum(w.amount) from withdrawals w
+    where w.user_id = p.id and w.status <> 'failed'
   ),0)::numeric(12,2) as available_balance
 from profiles p;
