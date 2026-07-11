@@ -3,7 +3,6 @@
 import { createClient } from "../../lib/supabase-server";
 import { createAdminClient } from "../../lib/supabase-admin";
 import { notify } from "../../lib/notify";
-import { asPlan, feeRate, feeFromGross, netFromGross } from "../../lib/fees";
 import { redirect } from "next/navigation";
 
 // Load a contract and confirm the signed-in user is the party allowed to run
@@ -147,20 +146,32 @@ export async function fundMilestone(
 ) {
   const supabase = await createClient();
   // Only the client on this contract can fund escrow.
-  const { contract } = await guardMilestone(
+  const { user, contract } = await guardMilestone(
     supabase,
     milestoneId,
     contractId,
     "client"
   );
 
-  // Move the milestone into escrow. No real money moves yet — this represents
-  // the client committing funds; real charging is wired when payments go live.
+  // Keep the legacy flag (drives existing button logic) …
   await supabase
     .from("milestones")
     .update({ payment_status: "funded" })
     .eq("id", milestoneId)
     .eq("contract_id", contractId);
+
+  // … and drive the escrow engine: FUNDED state + append-only ledger (funds
+  // in escrow + client fee). Idempotency key blocks a double-fund.
+  try {
+    const admin = createAdminClient();
+    await admin.rpc("escrow_fund_milestone", {
+      p_milestone: milestoneId,
+      p_actor: user.id,
+      p_idem: `fund:${milestoneId}`,
+    });
+  } catch (e) {
+    console.error("escrow fund failed:", e);
+  }
 
   await notify(
     supabase,
@@ -200,12 +211,23 @@ export async function submitMilestone(
     .eq("id", milestoneId)
     .eq("contract_id", contractId);
 
+  // Escrow engine: FUNDED → IN_REVIEW and start the 5-day auto-approve timer.
+  try {
+    const admin = createAdminClient();
+    await admin.rpc("escrow_submit_work", {
+      p_milestone: milestoneId,
+      p_actor: contract.freelancer_id,
+    });
+  } catch (e) {
+    console.error("escrow submit failed:", e);
+  }
+
   await notify(
     supabase,
     contract.client_id,
     "payment",
     "Work submitted for payment",
-    `A milestone on "${contract.title}" was submitted for your approval.`,
+    `A milestone on "${contract.title}" was submitted for your approval. It auto-approves in 5 days if not reviewed.`,
     `/contracts/${contractId}`
   );
 
@@ -257,46 +279,21 @@ export async function approveMilestone(
       .eq("id", contract.client_id);
   }
 
-  // Record the freelancer's earnings in the job_payments ledger at the fee rate
-  // for their plan at the moment of release (Basic 10%, Pro 5%). Uses the admin
-  // client because the approver is the client, not the freelancer whose row we
-  // write; the unique index on milestone_id keeps this idempotent.
-  if (contract?.freelancer_id && ms?.amount) {
+  // Escrow engine: IN_REVIEW → PENDING. The freelancer service fee is cut HERE
+  // (Basic 10% / Pro 5%), the net is posted to the append-only ledger, and the
+  // 3-day security hold starts before the funds become withdrawable. The Pro
+  // rate is resolved inside the DB function from the freelancer's plan.
+  if (guarded?.client_id) {
     try {
       const admin = createAdminClient();
-      const { data: fp } = await admin
-        .from("profiles")
-        .select("plan, membership_status, membership_end_date")
-        .eq("id", contract.freelancer_id)
-        .maybeSingle();
-      // Effective plan: Pro only if the period hasn't lapsed.
-      const periodActive = fp?.membership_end_date
-        ? new Date(fp.membership_end_date).getTime() > Date.now()
-        : false;
-      const isPro =
-        asPlan(fp?.plan) === "pro" &&
-        (fp?.membership_status === "active" ||
-          ((fp?.membership_status === "cancelled" ||
-            fp?.membership_status === "past_due") &&
-            periodActive));
-      const plan = isPro ? "pro" : "basic";
-      const gross = Number(ms.amount) || 0;
-      await admin.from("job_payments").upsert(
-        {
-          job_id: contract.job_id ?? null,
-          milestone_id: milestoneId,
-          freelancer_id: contract.freelancer_id,
-          gross_amount: gross,
-          marketplace_fee_rate: feeRate(plan),
-          marketplace_fee_amount: feeFromGross(gross, plan),
-          net_amount: netFromGross(gross, plan),
-          plan_at_time_of_payment: plan,
-          payment_date: new Date().toISOString(),
-        },
-        { onConflict: "milestone_id" }
-      );
+      const { error: eErr } = await admin.rpc("escrow_approve_milestone", {
+        p_milestone: milestoneId,
+        p_actor: guarded.client_id,
+        p_auto: false,
+      });
+      if (eErr) console.error("escrow approve failed:", eErr.message);
     } catch (e) {
-      console.error("job_payments ledger write failed:", e);
+      console.error("escrow approve failed:", e);
     }
   }
 

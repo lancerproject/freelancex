@@ -26,6 +26,7 @@ import { refundEscrowAndComplete } from "@/lib/contract-closure";
 import { ContractMenu } from "@/components/contract-menu";
 import { StarRating } from "@/components/star-rating";
 import { AttachmentUploader } from "@/components/attachment-uploader";
+import { netFromGross, feePercent, asPlan } from "@/lib/fees";
 import Link from "next/link";
 
 export default async function ContractDetailsPage({
@@ -116,6 +117,16 @@ export default async function ContractDetailsPage({
 
   const otherName =
     otherProfile?.full_name || otherProfile?.username || "Member";
+
+  // Freelancer's plan — used to show the net (post service-fee) payout on
+  // approved milestones (gross is shown while still in progress / in review).
+  const { data: fplanRow } = await supabase
+    .from("profiles")
+    .select("plan")
+    .eq("id", contract.freelancer_id)
+    .maybeSingle();
+  const fplan = asPlan(fplanRow?.plan);
+  const feePct = feePercent(fplan);
 
   // ---- Reviews (double-blind) ----
   const { data: myReview } = await supabase
@@ -496,7 +507,28 @@ export default async function ContractDetailsPage({
                             {m.title}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            ${m.amount}
+                            {["PENDING", "AVAILABLE", "WITHDRAWN"].includes(
+                              (m.escrow_status as string) || ""
+                            ) ? (
+                              <>
+                                ${netFromGross(Number(m.amount), fplan)}{" "}
+                                <span className="text-xs text-muted-foreground">
+                                  net · after {feePct}% fee (from ${m.amount})
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                ${m.amount}
+                                {["FUNDED", "IN_REVIEW"].includes(
+                                  (m.escrow_status as string) || ""
+                                ) ? (
+                                  <span className="text-xs text-muted-foreground">
+                                    {" "}
+                                    · full amount, not yet available for withdrawal
+                                  </span>
+                                ) : null}
+                              </>
+                            )}
                             {m.due_date
                               ? ` · due ${new Date(m.due_date).toLocaleDateString()}`
                               : ""}
@@ -504,35 +536,25 @@ export default async function ContractDetailsPage({
                         </div>
                       </div>
                       {(() => {
-                        const returned = m.payment_status === "returned";
-                        const released =
-                          m.status === "approved" ||
-                          m.payment_status === "released";
-                        const funded =
-                          m.payment_status === "funded" || released;
-                        const label = returned
-                          ? "Returned to client"
-                          : released
-                          ? "Paid"
-                          : m.status === "submitted"
-                          ? "Submitted for review"
-                          : funded
-                          ? "Active & funded"
-                          : "Awaiting funding";
-                        const cls = returned
-                          ? "bg-amber-500/15 text-amber-600"
-                          : released
-                          ? "bg-primary/15 text-primary"
-                          : m.status === "submitted"
-                          ? "bg-blue-500/15 text-blue-500"
-                          : funded
-                          ? "bg-green-500/15 text-green-600"
-                          : "bg-secondary text-muted-foreground";
+                        const es = (m.escrow_status as string) || "";
+                        const map: Record<string, { label: string; cls: string }> = {
+                          FUNDED: { label: "In progress · funded", cls: "bg-green-500/15 text-green-600" },
+                          IN_REVIEW: { label: "In review", cls: "bg-blue-500/15 text-blue-500" },
+                          PENDING: { label: "Clearing", cls: "bg-amber-500/15 text-amber-600" },
+                          AVAILABLE: { label: "Available", cls: "bg-primary/15 text-primary" },
+                          WITHDRAWN: { label: "Withdrawn", cls: "bg-primary/15 text-primary" },
+                          CANCELLATION_WINDOW: { label: "Ended · action needed", cls: "bg-amber-500/15 text-amber-600" },
+                          DISPUTE_HELD: { label: "In dispute", cls: "bg-red-500/15 text-red-600" },
+                          REFUNDED: { label: "Refunded to client", cls: "bg-amber-500/15 text-amber-600" },
+                        };
+                        const chosen =
+                          map[es] ??
+                          (m.status === "submitted"
+                            ? { label: "Submitted for review", cls: "bg-blue-500/15 text-blue-500" }
+                            : { label: "Awaiting funding", cls: "bg-secondary text-muted-foreground" });
                         return (
-                          <span
-                            className={`text-xs px-2.5 py-1 rounded-full ${cls}`}
-                          >
-                            {label}
+                          <span className={`text-xs px-2.5 py-1 rounded-full ${chosen.cls}`}>
+                            {chosen.label}
                           </span>
                         );
                       })()}
