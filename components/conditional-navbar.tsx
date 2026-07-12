@@ -499,28 +499,33 @@ export default function ConditionalNavbar({
                 </div>
 
                 <div className="py-1">
-                  {[
-                    { icon: "👤", label: "Your profile", href: "/profile" },
-                    {
-                      icon: "📈",
-                      label: "Stats and trends",
-                      href: role === "freelancer" ? "/stats" : "/contracts",
-                    },
-                    {
-                      icon: "🕐",
-                      label: "Account health",
-                      href:
-                        role === "freelancer"
-                          ? "/freelancer/health"
-                          : "/settings/security",
-                    },
-                    {
-                      icon: "🪪",
-                      label: "Membership plan",
-                      href: "/settings/membership",
-                    },
-                    { icon: "⚙️", label: "Account settings", href: "/settings" },
-                  ].map((i) => (
+                  {(role === "freelancer"
+                    ? [
+                        { icon: "👤", label: "Your profile", href: "/profile" },
+                        { icon: "📈", label: "Stats and trends", href: "/stats" },
+                        {
+                          icon: "🕐",
+                          label: "Account health",
+                          href: "/freelancer/health",
+                        },
+                        {
+                          icon: "🪪",
+                          label: "Membership plan",
+                          href: "/settings/membership",
+                        },
+                        { icon: "⚙️", label: "Account settings", href: "/settings" },
+                      ]
+                    : // Client menu — only client-relevant items (no freelancer
+                      // profile / stats / health / membership).
+                      [
+                        {
+                          icon: "🧾",
+                          label: "Billing & payments",
+                          href: "/settings/billing",
+                        },
+                        { icon: "⚙️", label: "Account settings", href: "/settings" },
+                      ]
+                  ).map((i) => (
                     <Link
                       key={i.label}
                       href={i.href}
