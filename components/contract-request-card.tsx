@@ -76,7 +76,7 @@ export function ContractRequestCard({
             href={`/offer/new?request=${request.id}`}
             className="flex-1 text-center bg-primary text-primary-foreground rounded-full px-3 py-1.5 text-xs font-semibold hover:opacity-90"
           >
-            Review &amp; send offer
+            View contract
           </Link>
           <button
             type="button"
