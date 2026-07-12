@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
+import { createAdminClient } from "@/lib/supabase-admin";
+import { earnedLabel } from "@/lib/earned-label";
 import { LocalTime } from "@/components/local-time";
 import { ProBadge } from "@/components/pro-badge";
 import { talentBadgeMeta } from "@/lib/talent-badges";
@@ -89,6 +91,23 @@ export default async function ProposalDetailPage({
     .limit(1);
   const convoId = convo?.[0]?.id ?? null;
 
+  // Lifetime earnings + Job Success (same source as talent search / cards).
+  let earned = 0;
+  try {
+    const admin = createAdminClient();
+    const { data: pays } = await admin
+      .from("job_payments")
+      .select("gross_amount")
+      .eq("freelancer_id", p.freelancer_id);
+    earned = (pays ?? []).reduce(
+      (t, r) => t + (Number(r.gross_amount) || 0),
+      0
+    );
+  } catch {
+    /* best-effort */
+  }
+  const jss = Number(prof?.jss_score) || 0;
+
   const employment = toList(prof?.employment);
   const education = toList(prof?.education);
   const portfolio = toList(prof?.portfolio);
@@ -150,6 +169,16 @@ export default async function ProposalDetailPage({
           {" · "}
           <LocalTime timezone={prof?.timezone ?? undefined} /> local time
         </p>
+        <div className="flex items-center justify-center gap-6 mt-2 text-sm">
+          <span className="font-semibold text-foreground">
+            {earnedLabel(earned)}
+          </span>
+          {jss > 0 && (
+            <span className="text-muted-foreground">
+              {Math.round(jss)}% Job Success
+            </span>
+          )}
+        </div>
 
         {/* Message / Hire */}
         <div className="flex items-center justify-center gap-3 mt-6">

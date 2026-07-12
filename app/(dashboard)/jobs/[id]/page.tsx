@@ -66,7 +66,7 @@ export default async function JobDetailsPage({
   const { data: proposalsRaw } = await supabase
     .from("proposals")
     .select(
-      `*, profiles ( id, full_name, skills, title, hourly_rate, plan, membership_status, membership_end_date, membership_autorenew, talent_badge, avatar_url, location )`
+      `*, profiles ( id, full_name, skills, title, hourly_rate, plan, membership_status, membership_end_date, membership_autorenew, talent_badge, avatar_url, location, jss_score )`
     )
     .eq("job_id", id)
     .order("created_at", { ascending: false });
@@ -90,6 +90,29 @@ export default async function JobDetailsPage({
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+
+  // Lifetime earnings per applicant (same source as talent search) so each
+  // proposal card can show "$X earned", like Upwork.
+  const earnedByFreelancer: Record<string, number> = {};
+  const applicantIds = Array.from(
+    new Set((proposals ?? []).map((p) => p.freelancer_id).filter(Boolean))
+  );
+  if (applicantIds.length > 0) {
+    try {
+      const admin = createAdminClient();
+      const { data: pays } = await admin
+        .from("job_payments")
+        .select("freelancer_id, gross_amount")
+        .in("freelancer_id", applicantIds);
+      for (const pay of pays ?? []) {
+        earnedByFreelancer[pay.freelancer_id] =
+          (earnedByFreelancer[pay.freelancer_id] ?? 0) +
+          (Number(pay.gross_amount) || 0);
+      }
+    } catch {
+      /* earnings are best-effort on the card */
+    }
+  }
 
   const proposalCount = proposals?.length || 0;
   const hired = (proposals ?? []).filter((p) => p.status === "accepted");
@@ -615,6 +638,7 @@ export default async function JobDetailsPage({
                               p={p}
                               jobId={id}
                               convoId={convoByFreelancer[p.freelancer_id] ?? null}
+                              earned={earnedByFreelancer[p.freelancer_id] ?? 0}
                             />
                           ))}
                         </div>
@@ -656,6 +680,7 @@ export default async function JobDetailsPage({
                             p={p}
                             jobId={id}
                             convoId={convoByFreelancer[p.freelancer_id] ?? null}
+                            earned={earnedByFreelancer[p.freelancer_id] ?? 0}
                           />
                         ))}
                       </div>
@@ -768,6 +793,7 @@ export default async function JobDetailsPage({
                             p={p}
                             jobId={id}
                             convoId={convoByFreelancer[p.freelancer_id] ?? null}
+                            earned={earnedByFreelancer[p.freelancer_id] ?? 0}
                           />
                         ))}
                       </div>

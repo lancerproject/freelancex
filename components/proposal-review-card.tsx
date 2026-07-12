@@ -7,6 +7,7 @@ import {
 import { messageFreelancer } from "@/app/(dashboard)/jobs/actions";
 import { ProBadge } from "@/components/pro-badge";
 import { talentBadgeMeta } from "@/lib/talent-badges";
+import { earnedLabel } from "@/lib/earned-label";
 
 // One proposal on the client's "Review proposals" page — mirrors Upwork's
 // applicant card: avatar, name/title/location, rate, cover letter, skills, and
@@ -15,13 +16,16 @@ export function ProposalReviewCard({
   p,
   jobId,
   convoId,
+  earned = 0,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   p: any;
   jobId: string;
   convoId: string | null;
+  earned?: number;
 }) {
   const prof = Array.isArray(p.profiles) ? p.profiles[0] : p.profiles;
+  const jss = Number(prof?.jss_score) || 0;
   const name = prof?.full_name || "Freelancer";
   const skills = String(prof?.skills || "")
     .split(",")
@@ -140,11 +144,19 @@ export function ProposalReviewCard({
         </div>
       </div>
 
-      {/* Rate */}
-      <p className="text-sm text-foreground font-medium mt-3">
-        ${p.bid_amount}
-        {p.delivery_days ? ` · ${p.delivery_days}d` : ""}
-      </p>
+      {/* Rate · earned · Job Success */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-sm">
+        <span className="font-medium text-foreground">
+          ${p.bid_amount}
+          {p.delivery_days ? ` · ${p.delivery_days}d` : ""}
+        </span>
+        <span className="text-muted-foreground">{earnedLabel(earned)}</span>
+        {jss > 0 && (
+          <span className="text-muted-foreground">
+            {Math.round(jss)}% Job Success
+          </span>
+        )}
+      </div>
 
       {/* Cover letter */}
       {p.cover_letter && (
