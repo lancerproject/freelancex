@@ -124,9 +124,15 @@ export default async function JobDetailsPage({
     const ownerActivity = await getJobActivity(id);
     const { data: clientProfile } = await supabase
       .from("profiles")
-      .select("location, created_at, phone")
+      .select("location, country, city, timezone, created_at, phone")
       .eq("id", job.client_id)
       .maybeSingle();
+
+    // The client's location can live in `location` OR the country/city fields
+    // (the client settings save country/city, not `location`).
+    const clientLocation =
+      clientProfile?.location ||
+      [clientProfile?.city, clientProfile?.country].filter(Boolean).join(", ");
 
     const { count: openJobs } = await supabase
       .from("jobs")
@@ -380,11 +386,14 @@ export default async function JobDetailsPage({
                     : "Phone number not verified"}
                 </p>
                 <p className="text-foreground mt-3">
-                  {clientProfile?.location || "Location not set"}
-                  {clientProfile?.location && (
+                  {clientLocation || "Location not set"}
+                  {clientLocation && (
                     <>
                       {" · "}
-                      <LocalTime /> local time
+                      <LocalTime
+                        timezone={clientProfile?.timezone ?? undefined}
+                      />{" "}
+                      local time
                     </>
                   )}
                 </p>

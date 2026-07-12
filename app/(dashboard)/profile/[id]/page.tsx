@@ -491,7 +491,9 @@ export default async function PublicProfilePage({
               )}
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              {profile.location || "Location not set"}
+              {profile.location ||
+                [profile.city, profile.country].filter(Boolean).join(", ") ||
+                "Location not set"}
             </p>
             <p className="text-sm text-muted-foreground mt-0.5">
               <LocalTime timezone={profile.timezone} /> local time
