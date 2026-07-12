@@ -32,7 +32,19 @@ export async function closeAccount(formData: FormData) {
     .or(`freelancer_id.eq.${user.id},client_id.eq.${user.id}`)
     .in("status", ["active", "disputed"]);
 
-  if ((pendingProposals ?? 0) > 0 || (activeContracts ?? 0) > 0) {
+  // Open disputes the user started must be resolved first (disputes against
+  // the user put the contract in 'disputed' status, already blocked above).
+  const { count: openDisputes } = await supabase
+    .from("escrow_disputes")
+    .select("*", { count: "exact", head: true })
+    .eq("opened_by", user.id)
+    .in("status", ["open", "under_review"]);
+
+  if (
+    (pendingProposals ?? 0) > 0 ||
+    (activeContracts ?? 0) > 0 ||
+    (openDisputes ?? 0) > 0
+  ) {
     redirect("/settings/close-account?error=conditions");
   }
 

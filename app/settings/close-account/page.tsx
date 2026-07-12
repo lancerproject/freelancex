@@ -37,6 +37,12 @@ export default async function CloseAccountPage({
     .or(`freelancer_id.eq.${user.id},client_id.eq.${user.id}`)
     .in("status", ["active", "disputed"]);
 
+  const { count: openDisputes } = await supabase
+    .from("escrow_disputes")
+    .select("*", { count: "exact", head: true })
+    .eq("opened_by", user.id)
+    .in("status", ["open", "under_review"]);
+
   const { data: prof } = await supabase
     .from("profiles")
     .select("plan, membership_status, membership_end_date, membership_autorenew")
@@ -53,7 +59,8 @@ export default async function CloseAccountPage({
 
   const pp = pendingProposals ?? 0;
   const ac = activeContracts ?? 0;
-  const blocked = pp > 0 || ac > 0 || available > 0;
+  const od = openDisputes ?? 0;
+  const blocked = pp > 0 || ac > 0 || od > 0 || available > 0;
 
   const checkItem = (done: boolean, text: React.ReactNode) => (
     <li className="flex items-start gap-2">
@@ -68,10 +75,10 @@ export default async function CloseAccountPage({
     <div className="space-y-6 max-w-xl">
       <div>
         <Link
-          href="/settings/contact"
+          href="/settings"
           className="text-sm text-primary hover:underline"
         >
-          ← Back to contact info
+          ← Back to settings
         </Link>
         <h2 className="text-2xl font-bold text-foreground mt-3">
           Close my account
@@ -128,6 +135,20 @@ export default async function CloseAccountPage({
                 You have {ac} active contract{ac === 1 ? "" : "s"}.{" "}
                 <Link href="/contracts" className="text-primary hover:underline">
                   End them
+                </Link>{" "}
+                first.
+              </>
+            )
+          )}
+          {checkItem(
+            od === 0,
+            od === 0 ? (
+              "No open disputes."
+            ) : (
+              <>
+                You have {od} open dispute{od === 1 ? "" : "s"}.{" "}
+                <Link href="/contracts" className="text-primary hover:underline">
+                  Resolve them
                 </Link>{" "}
                 first.
               </>

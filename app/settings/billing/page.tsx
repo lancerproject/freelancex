@@ -104,78 +104,70 @@ export default async function BillingSettingsPage() {
     .eq("contracts.client_id", user.id);
   const milestones = ms ?? [];
   const released = milestones.filter((m) => m.payment_status === "released");
-  const inEscrow = milestones.filter((m) => m.payment_status === "funded");
 
-  const sum = (arr: { amount?: number | null }[]) =>
-    arr.reduce((t, m) => t + (Number(m.amount) || 0), 0);
-  const spentBase = sum(released);
-  const spentFee = spentBase * CLIENT_FEE;
-  const totalSpent = spentBase + spentFee;
-  const escrow = sum(inEscrow);
+  const hasBillingMethod = !!profile?.card_last4 || !!profile?.paypal_email;
+  const cardLabel = profile?.card_last4
+    ? `${(profile.card_brand ?? "Card").replace(/^\w/, (c: string) => c.toUpperCase())} •••• ${profile.card_last4}`
+    : profile?.paypal_email
+      ? `PayPal — ${profile.paypal_email}`
+      : null;
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-foreground">Billing &amp; Payments</h2>
+      <h2 className="text-2xl font-bold text-foreground">Billing &amp; payments</h2>
 
-      {/* Summary */}
-      <div className="grid sm:grid-cols-3 gap-4">
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <h3 className="text-sm text-muted-foreground">Total spent</h3>
-          <p className="text-3xl font-bold text-foreground mt-2">
-            {money(totalSpent)}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">Incl. 2% service fee</p>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <h3 className="text-sm text-muted-foreground">In escrow</h3>
-          <p className="text-3xl font-bold text-foreground mt-2">{money(escrow)}</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Funded, awaiting approval
-          </p>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <h3 className="text-sm text-muted-foreground">Service fee</h3>
-          <p className="text-3xl font-bold text-foreground mt-2">2%</p>
-          <p className="text-xs text-muted-foreground mt-1">No hidden charges</p>
-        </div>
-      </div>
-
-      {/* Billing methods */}
-      <div className="rounded-2xl border border-border bg-card p-6">
-        <h3 className="text-lg font-semibold text-foreground">
-          Manage billing methods
-        </h3>
-        <p className="text-muted-foreground mt-1">
-          Add, update, or remove the cards you use to pay for work.
-        </p>
-
-        <div className="mt-6 rounded-xl border border-dashed border-border p-5 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-foreground">
-              No billing method added yet
-            </p>
-            <p className="text-muted-foreground text-sm mt-1">
-              You only pay when you fund a milestone. It&apos;s free to post jobs
-              and hire.
-            </p>
-          </div>
+      {/* Top row: Outstanding balance + Company billing cycle (like Upwork) */}
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div className="rounded-2xl border border-border bg-card p-6 lg:p-8">
+          <h3 className="text-xl font-bold text-foreground">Outstanding balance</h3>
+          <p className="text-3xl font-bold text-foreground mt-3">{money(0)}</p>
           <button
             type="button"
             disabled
-            title="Adding a card becomes available when payments go live"
-            className="border border-border text-muted-foreground rounded-full px-4 py-2 text-sm cursor-not-allowed shrink-0"
+            title="Nothing to pay — you fund milestones directly from a contract"
+            className="mt-5 rounded-full bg-secondary text-muted-foreground px-6 py-2.5 text-sm font-semibold cursor-not-allowed"
           >
-            + Add a billing method
+            Pay now
           </button>
         </div>
+        <div className="rounded-2xl border border-border bg-card p-6 lg:p-8">
+          <h3 className="text-xl font-bold text-foreground">Company billing cycle</h3>
+          <p className="text-foreground mt-3">Weekly</p>
+          <p className="text-sm text-muted-foreground mt-8">
+            Terms: <span className="font-semibold text-foreground">Standard</span>
+          </p>
+        </div>
+      </div>
 
-        <p className="text-muted-foreground text-sm mt-4">
-          Card payments become available when payments go live. Your spending
-          above is tracked from funded and released milestones.
+      {/* Billing methods (Upwork-style card) */}
+      <div className="rounded-2xl border border-border bg-card p-6 lg:p-8">
+        <h3 className="text-xl font-bold text-foreground">Billing methods</h3>
+        {hasBillingMethod ? (
+          <div className="mt-5 flex items-center justify-between gap-4 rounded-xl border border-border p-5">
+            <p className="text-foreground font-medium">{cardLabel}</p>
+            <span className="text-xs text-muted-foreground">Default</span>
+          </div>
+        ) : (
+          <p className="text-muted-foreground mt-3 max-w-xl">
+            You haven&apos;t set up any billing methods yet. Add a method so you
+            can hire when you&apos;re ready.
+          </p>
+        )}
+        <button
+          type="button"
+          disabled
+          title="Card payments become available when payments go live"
+          className="mt-6 inline-flex items-center gap-2 text-muted-foreground text-sm font-semibold cursor-not-allowed"
+        >
+          <span className="text-lg leading-none">+</span> Add a billing method
+        </button>
+        <p className="text-muted-foreground text-xs mt-4 max-w-xl">
+          It&apos;s free to post jobs and hire — you only pay when you fund a
+          milestone. Card payments become available when payments go live.
         </p>
       </div>
 
-      {/* Billing history */}
+      {/* Billing history (kept — richer than Upwork's, useful for clients) */}
       <div className="rounded-2xl border border-border bg-card p-6">
         <h3 className="text-lg font-semibold text-foreground mb-4">
           Billing history
