@@ -9,9 +9,9 @@ import { TIMEZONES, timezoneLabel } from "@/lib/timezones";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function CompanyContacts({ owner, p }: { owner: string; p: any }) {
-  const has =
-    p?.phone || p?.vat_id || p?.time_zone || p?.country || p?.address || p?.city || p?.zip;
-  const [editing, setEditing] = useState(!has);
+  // Always start on the read view (like Upwork) — the user opens the editor
+  // with the pencil. This avoids the card sitting "open" when it's empty.
+  const [editing, setEditing] = useState(false);
 
   const countryOptions = PHONE_COUNTRIES.map((c) => ({
     value: c.name,
@@ -132,15 +132,13 @@ export function CompanyContacts({ owner, p }: { owner: string; p: any }) {
           >
             Save
           </button>
-          {has && (
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              className="text-foreground px-4 py-2.5 rounded-full font-medium hover:bg-secondary"
-            >
-              Cancel
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setEditing(false)}
+            className="text-foreground px-4 py-2.5 rounded-full font-medium hover:bg-secondary"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </form>
