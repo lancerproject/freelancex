@@ -1,10 +1,12 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase-server";
 import { wizardResumePath } from "@/lib/wizard";
 import { preAuthGuard, postLoginChecks } from "@/lib/security/guard";
+import { statusBlockMessage } from "@/lib/security/suspend";
 
 export async function loginWithGoogle(formData?: FormData) {
   const supabase = await createClient();
@@ -71,12 +73,30 @@ export async function loginWithEmail(formData: FormData) {
       redirect("/login?closed=1");
     }
 
-    // Security: enforce account status + run IP/VPN/abuse checks on login.
-    const check = await postLoginChecks(user.id, profile?.account_status);
-    if (check.blocked) {
+    // Block an already suspended/flagged account right away — this is a fast
+    // DB read, no third-party calls, so it doesn't slow down normal logins.
+    const status = profile?.account_status;
+    if (
+      status === "suspended" ||
+      status === "permanently_suspended" ||
+      status === "flagged"
+    ) {
       await supabase.auth.signOut();
-      redirect(`/login?error=${encodeURIComponent(check.message || "Access denied.")}`);
+      redirect(`/login?error=${encodeURIComponent(statusBlockMessage(status))}`);
     }
+
+    // Log the sign-in + run IP/VPN/abuse intelligence AFTER the response is
+    // sent, so the user isn't kept waiting on third-party APIs ("verifying…").
+    // Anything it flags/suspends still takes effect and is enforced on the very
+    // next request by the proxy.
+    const uid = user.id;
+    after(async () => {
+      try {
+        await postLoginChecks(uid, status);
+      } catch {
+        /* best-effort background security logging */
+      }
+    });
 
     const resume = wizardResumePath(profile);
     if (resume) redirect(resume);
