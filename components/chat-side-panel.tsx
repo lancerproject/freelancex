@@ -99,6 +99,17 @@ export function ChatSidePanel({
     ? searchable.filter((m) => m.content.toLowerCase().includes(q)).slice(0, 20)
     : [];
 
+  // The client can send a formal offer from chat (once, before an offer/contract
+  // exists). Uses the freelancer + job; includes the proposal if we have it.
+  const offerHref =
+    jobId && !viewerIsFreelancer
+      ? `/offer/new?job=${jobId}&freelancer=${other.id}${
+          proposalId ? `&proposal=${proposalId}` : ""
+        }`
+      : null;
+  const canSendOffer =
+    !!offerHref && !ended && !contractId && !timeline?.offerAt;
+
   const steps = timeline
     ? [
         {
@@ -111,7 +122,9 @@ export function ChatSidePanel({
           label: "Contract offer",
           at: timeline.offerAt,
           done: !!timeline.offerAt,
-          pendingText: "Awaiting offer from client",
+          pendingText: viewerIsFreelancer
+            ? "Awaiting offer from the client"
+            : "Send an offer to hire this freelancer",
         },
         {
           label: "Offer acceptance",
@@ -217,6 +230,14 @@ export function ChatSidePanel({
                         View offer
                       </Link>
                     )}
+                  {s.label === "Contract offer" && !s.done && canSendOffer && (
+                    <Link
+                      href={offerHref!}
+                      className="inline-block mt-1.5 bg-primary text-primary-foreground rounded-full px-4 py-1.5 text-xs font-semibold hover:opacity-90"
+                    >
+                      Send offer
+                    </Link>
+                  )}
                 </div>
               </li>
             ))}
@@ -415,6 +436,16 @@ export function ChatSidePanel({
         >
           📝 Propose contract
         </button>
+      )}
+
+      {/* Send offer (client) */}
+      {canSendOffer && (
+        <Link
+          href={offerHref!}
+          className="block w-full text-center bg-primary text-primary-foreground rounded-full px-4 py-2.5 text-sm font-semibold hover:opacity-90"
+        >
+          📝 Send offer to hire
+        </Link>
       )}
 
       {proposeOpen && (
