@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Suspense, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import {
   loginWithGoogle,
@@ -11,14 +11,24 @@ import {
 
 function LoginInner() {
   const params = useSearchParams()
-  const error = params.get("error")
-  const reset = params.get("reset")
-  const closed = params.get("closed")
-  const passwordChanged = params.get("password_changed")
+  // Seed the one-time banners from the URL, then strip the query string so a
+  // refresh (or a fresh attempt) doesn't keep re-showing a stale message.
+  const [error, setError] = useState<string | null>(params.get("error"))
+  const [reset] = useState<string | null>(params.get("reset"))
+  const [closed] = useState<string | null>(params.get("closed"))
+  const [passwordChanged] = useState<string | null>(
+    params.get("password_changed")
+  )
 
   const [step, setStep] = useState(1)
   const [email, setEmail] = useState("")
   const [showPw, setShowPw] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.search) {
+      window.history.replaceState(null, "", window.location.pathname)
+    }
+  }, [])
 
   return (
     <main className="min-h-screen flex flex-col bg-background">
@@ -67,7 +77,10 @@ function LoginInner() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    if (error) setError(null)
+                  }}
                   placeholder="Username or Email"
                   className="flex-1 bg-transparent py-3 px-2 text-foreground outline-none"
                 />
@@ -131,6 +144,7 @@ function LoginInner() {
                     name="password"
                     placeholder="Password"
                     required
+                    onChange={() => error && setError(null)}
                     className="flex-1 bg-transparent py-3 px-2 text-foreground outline-none"
                   />
                   <button
@@ -168,6 +182,7 @@ function LoginInner() {
               <button
                 onClick={() => {
                   setEmail("")
+                  setError(null)
                   setStep(1)
                 }}
                 className="block mx-auto mt-5 text-primary font-medium hover:underline"
