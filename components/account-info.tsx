@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { updateAccount } from "@/app/settings/actions";
+import { AvatarPhotoEdit } from "@/components/avatar-photo-edit";
 
 export function AccountInfo({
   fullName,
@@ -38,18 +39,22 @@ export function AccountInfo({
           </button>
         </div>
         <div className="flex items-center gap-5 mt-5">
-          {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              alt=""
-              className="w-20 h-20 rounded-full object-cover border border-border"
-            />
-          ) : (
-            <div className="w-20 h-20 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold">
-              {(fullName || email || "?").slice(0, 1).toUpperCase()}
-            </div>
-          )}
+          <div className="relative w-20 h-20 shrink-0">
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt=""
+                className="w-20 h-20 rounded-full object-cover border border-border"
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold">
+                {(fullName || email || "?").slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            {/* Same photo editor (crop / zoom / rotate) freelancers use */}
+            <AvatarPhotoEdit />
+          </div>
           <div>
             <p className="text-xl font-bold text-foreground">
               {fullName || "—"}
@@ -78,18 +83,21 @@ export function AccountInfo({
       )}
 
       <div className="flex flex-col sm:flex-row gap-6">
-        {avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={avatarUrl}
-            alt=""
-            className="w-20 h-20 rounded-full object-cover border border-border"
-          />
-        ) : (
-          <div className="w-20 h-20 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold shrink-0">
-            {(firstName || email || "?").slice(0, 1).toUpperCase()}
-          </div>
-        )}
+        <div className="relative w-20 h-20 shrink-0">
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt=""
+              className="w-20 h-20 rounded-full object-cover border border-border"
+            />
+          ) : (
+            <div className="w-20 h-20 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold">
+              {(firstName || email || "?").slice(0, 1).toUpperCase()}
+            </div>
+          )}
+          <AvatarPhotoEdit />
+        </div>
 
         <div className="flex-1 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -131,17 +139,9 @@ export function AccountInfo({
             </p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
-              Profile photo
-            </label>
-            <input
-              type="file"
-              name="avatar_file"
-              accept="image/*"
-              className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-full file:border-0 file:bg-primary file:text-primary-foreground file:px-4 file:py-2 file:font-medium file:cursor-pointer hover:file:opacity-90"
-            />
-          </div>
+          <p className="text-xs text-muted-foreground">
+            To change your profile photo, use the ✎ button on the picture.
+          </p>
 
           <div className="flex items-center gap-3">
             <button
