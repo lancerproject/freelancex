@@ -5,6 +5,7 @@ import { AccountInfo } from "@/components/account-info";
 import { CompanyDetails } from "@/components/company-details";
 import { CompanyContacts } from "@/components/company-contacts";
 import { AiPreference } from "@/components/ai-preference";
+import { FlashBanner } from "@/components/flash-banner";
 
 export const metadata = { title: "My info | Xwork" };
 
@@ -48,21 +49,19 @@ export default async function MyInfoPage({
       </div>
 
       {sp.saved === "1" && (
-        <div className="rounded-lg border border-primary/30 bg-primary/10 text-primary px-4 py-2.5 text-sm">
-          ✓ Your changes were saved.
-        </div>
+        <FlashBanner tone="success">✓ Your changes were saved.</FlashBanner>
       )}
       {sp.email_sent === "1" && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm text-foreground">
+        <FlashBanner tone="success">
           We sent a verification link to your new email. Confirm it, then sign in
           with your new email and the same password.
-        </div>
+        </FlashBanner>
       )}
       {sp.emailerror && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 text-destructive px-4 py-2.5 text-sm">
+        <FlashBanner tone="error">
           We couldn&apos;t update your email — it may already be in use. Your
           other details were saved.
-        </div>
+        </FlashBanner>
       )}
 
       <AccountInfo

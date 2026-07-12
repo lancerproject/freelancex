@@ -17,6 +17,7 @@ import { SuspensionBanner } from "@/components/suspension-banner";
 import { getMembership } from "@/lib/membership";
 import { ProBadge } from "@/components/pro-badge";
 import { getProposalHub } from "@/lib/proposal-hub";
+import { FlashBanner } from "@/components/flash-banner";
 
 export default async function DashboardPage({
   searchParams,
@@ -51,19 +52,18 @@ export default async function DashboardPage({
   const displayName =
     profile?.full_name || profile?.username || user.email?.split("@")[0];
 
-  const banner = sp.joberror ? (
-    <div className="max-w-6xl mx-auto px-4 lg:px-8 pt-6">
-      <div className="rounded-lg border border-destructive/40 bg-destructive/10 text-destructive p-3 text-sm">
-        Your job couldn&apos;t be posted: {sp.joberror}
+  const banner =
+    sp.joberror || sp.posted ? (
+      <div className="max-w-6xl mx-auto px-4 lg:px-8 pt-6">
+        {sp.joberror ? (
+          <FlashBanner tone="error">
+            Your job couldn&apos;t be posted: {sp.joberror}
+          </FlashBanner>
+        ) : (
+          <FlashBanner tone="success">Your job was posted.</FlashBanner>
+        )}
       </div>
-    </div>
-  ) : sp.posted ? (
-    <div className="max-w-6xl mx-auto px-4 lg:px-8 pt-6">
-      <div className="rounded-lg border border-primary/30 bg-primary/10 text-primary p-3 text-sm">
-        Your job was posted.
-      </div>
-    </div>
-  ) : null;
+    ) : null;
 
   return (
     <>
