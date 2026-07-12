@@ -27,6 +27,23 @@ export default async function MyJobsPage({
   const { data: jobs } = await query;
   const list = jobs ?? [];
 
+  // Bulk-load invite + message-thread counts for all of these jobs (Upwork's
+  // "Invited" and "Messaged" tallies), then group by job_id — two queries
+  // total rather than one per job.
+  const jobIds = list.map((j) => j.id);
+  const invitesByJob = new Map<string, number>();
+  const messagedByJob = new Map<string, number>();
+  if (jobIds.length) {
+    const [{ data: inv }, { data: convo }] = await Promise.all([
+      supabase.from("invites").select("job_id").in("job_id", jobIds),
+      supabase.from("conversations").select("job_id").in("job_id", jobIds),
+    ]);
+    for (const r of inv ?? [])
+      invitesByJob.set(r.job_id, (invitesByJob.get(r.job_id) ?? 0) + 1);
+    for (const r of convo ?? [])
+      messagedByJob.set(r.job_id, (messagedByJob.get(r.job_id) ?? 0) + 1);
+  }
+
   const timeAgo = (iso: string) => {
     if (!iso) return "";
     const diff = Date.now() - new Date(iso).getTime();
@@ -85,14 +102,23 @@ export default async function MyJobsPage({
         {list.map((job) => {
           const props = (job.proposals as { status?: string }[]) ?? [];
           const proposalCount = props.length;
+          const newCount = props.filter((p) => p.status === "pending").length;
           const hiredCount = props.filter((p) => p.status === "accepted").length;
+          const invited = invitesByJob.get(job.id) ?? 0;
+          const messaged = messagedByJob.get(job.id) ?? 0;
           const isDraft = job.status === "draft";
           const isClosed = job.status === "closed";
 
+          const badge = isDraft
+            ? { label: "Draft", cls: "bg-secondary text-muted-foreground" }
+            : isClosed
+            ? { label: "Closed", cls: "bg-secondary text-muted-foreground" }
+            : { label: "Open job post", cls: "bg-primary/10 text-primary" };
+
           let statusLine: string;
-          if (isDraft) statusLine = `Draft · Saved ${fmtDate(job.created_at)}`;
+          if (isDraft) statusLine = `Saved ${fmtDate(job.created_at)}`;
           else if (isClosed) statusLine = `Closed · ${fmtDate(job.created_at)}`;
-          else statusLine = `Posted ${timeAgo(job.created_at)} by you`;
+          else statusLine = `Created ${timeAgo(job.created_at)}`;
 
           return (
             <div
@@ -106,10 +132,17 @@ export default async function MyJobsPage({
                 >
                   {job.title}
                 </Link>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {statusLine}
-                </p>
-                <p className="text-sm text-muted-foreground mt-0.5">
+                <div className="flex items-center gap-2 mt-1">
+                  <span
+                    className={`text-xs font-medium rounded-full px-2.5 py-0.5 ${badge.cls}`}
+                  >
+                    {badge.label}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {statusLine}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
                   Public · Fixed-price · ${job.budget}
                 </p>
               </div>
@@ -117,18 +150,28 @@ export default async function MyJobsPage({
               {!isDraft && (
                 <div className="flex items-center gap-8 text-center">
                   <div>
+                    <p className="font-semibold text-foreground">{invited}/30</p>
+                    <p className="text-xs text-muted-foreground">Invited</p>
+                  </div>
+                  <div>
                     <p className="font-semibold text-foreground">
                       {proposalCount}
+                      {newCount > 0 && (
+                        <span className="text-primary font-medium">
+                          {" "}
+                          ({newCount} new)
+                        </span>
+                      )}
                     </p>
                     <p className="text-xs text-muted-foreground">Proposals</p>
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground">0</p>
+                    <p className="font-semibold text-foreground">{messaged}</p>
                     <p className="text-xs text-muted-foreground">Messaged</p>
                   </div>
                   <div>
                     <p className="font-semibold text-foreground">
-                      {hiredCount}
+                      {hiredCount}/1
                     </p>
                     <p className="text-xs text-muted-foreground">Hired</p>
                   </div>
@@ -153,9 +196,9 @@ export default async function MyJobsPage({
                 ) : (
                   <Link
                     href={`/jobs/${job.id}?tab=proposals`}
-                    className="border border-primary text-primary px-5 py-2 rounded-full text-sm font-medium hover:bg-primary/10 whitespace-nowrap"
+                    className="bg-primary text-primary-foreground px-6 py-2.5 rounded-full text-sm font-semibold hover:opacity-90 whitespace-nowrap"
                   >
-                    View proposals
+                    Review proposals
                   </Link>
                 )}
                 <JobPostMenu jobId={job.id} isDraft={isDraft} />

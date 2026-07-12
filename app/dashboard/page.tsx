@@ -118,7 +118,10 @@ async function ClientDashboard({
   const jobIds = jobList.map((j) => j.id);
 
   const proposalCounts: Record<string, number> = {};
+  const newCounts: Record<string, number> = {};
   const hiredCounts: Record<string, number> = {};
+  const invitedCounts: Record<string, number> = {};
+  const messagedCounts: Record<string, number> = {};
 
   const { data: contractRows } = await supabase
     .from("contracts")
@@ -130,14 +133,34 @@ async function ClientDashboard({
   }
 
   if (jobIds.length > 0) {
-    const { data: props } = await supabase
-      .from("proposals")
-      .select("job_id")
-      .in("job_id", jobIds);
+    // Proposals (+ how many are new/pending), invites, and message threads —
+    // the same tallies Upwork shows on each job card.
+    const [{ data: props }, { data: inv }, { data: convo }] = await Promise.all([
+      supabase.from("proposals").select("job_id, status").in("job_id", jobIds),
+      supabase.from("invites").select("job_id").in("job_id", jobIds),
+      supabase.from("conversations").select("job_id").in("job_id", jobIds),
+    ]);
     for (const p of props ?? []) {
       proposalCounts[p.job_id] = (proposalCounts[p.job_id] ?? 0) + 1;
+      if (p.status === "pending")
+        newCounts[p.job_id] = (newCounts[p.job_id] ?? 0) + 1;
     }
+    for (const r of inv ?? [])
+      invitedCounts[r.job_id] = (invitedCounts[r.job_id] ?? 0) + 1;
+    for (const r of convo ?? [])
+      messagedCounts[r.job_id] = (messagedCounts[r.job_id] ?? 0) + 1;
   }
+
+  const timeAgo = (iso: string) => {
+    if (!iso) return "";
+    const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days} day${days === 1 ? "" : "s"} ago`;
+  };
 
   // Personalized talent — a few freelancers to invite
   const { data: talent } = await supabase
@@ -306,39 +329,80 @@ async function ClientDashboard({
                 key={job.id}
                 className="rounded-2xl border border-border bg-card p-5"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-3 min-w-0">
+                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                  {/* Title + status + created */}
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
                     <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
                       📋
                     </div>
-                    <Link
-                      href={`/jobs/${job.id}`}
-                      className="font-semibold text-foreground hover:text-primary truncate"
-                    >
-                      {job.title}
-                    </Link>
+                    <div className="min-w-0">
+                      <Link
+                        href={`/jobs/${job.id}`}
+                        className="font-semibold text-foreground hover:text-primary block truncate"
+                      >
+                        {job.title}
+                      </Link>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span
+                          className={`text-xs px-2.5 py-0.5 rounded-full ${
+                            job.status === "closed"
+                              ? "bg-secondary text-muted-foreground"
+                              : "bg-primary/10 text-primary"
+                          }`}
+                        >
+                          {job.status === "closed" ? "Closed" : "Open job post"}
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                          Created {timeAgo(job.created_at)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <JobCardMenu jobId={job.id} />
-                </div>
 
-                <span
-                  className={`inline-block mt-3 text-xs px-2.5 py-1 rounded-full capitalize ${
-                    job.status === "closed"
-                      ? "bg-secondary text-muted-foreground"
-                      : "bg-primary/15 text-primary"
-                  }`}
-                >
-                  {job.status === "closed" ? "Closed" : "Open job post"}
-                </span>
+                  {/* Stats */}
+                  <div className="flex items-center gap-6 text-center shrink-0">
+                    <div>
+                      <p className="font-semibold text-foreground">
+                        {invitedCounts[job.id] ?? 0}/30
+                      </p>
+                      <p className="text-xs text-muted-foreground">Invited</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">
+                        {proposalCounts[job.id] ?? 0}
+                        {(newCounts[job.id] ?? 0) > 0 && (
+                          <span className="text-primary font-medium">
+                            {" "}
+                            ({newCounts[job.id]} new)
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Proposals</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">
+                        {messagedCounts[job.id] ?? 0}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Messaged</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">
+                        {hiredCounts[job.id] ?? 0}/1
+                      </p>
+                      <p className="text-xs text-muted-foreground">Hired</p>
+                    </div>
+                  </div>
 
-                <div className="flex flex-wrap gap-4 mt-3 text-sm">
-                  <span className="text-foreground font-medium">
-                    {proposalCounts[job.id] ?? 0} proposals
-                  </span>
-                  <span className="text-muted-foreground">
-                    {hiredCounts[job.id] ?? 0} hired
-                  </span>
-                  <span className="text-muted-foreground">${job.budget}</span>
+                  {/* Action + menu */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Link
+                      href={`/jobs/${job.id}?tab=proposals`}
+                      className="bg-primary text-primary-foreground px-6 py-2.5 rounded-full text-sm font-semibold hover:opacity-90 whitespace-nowrap"
+                    >
+                      Review proposals
+                    </Link>
+                    <JobCardMenu jobId={job.id} />
+                  </div>
                 </div>
               </div>
             )
