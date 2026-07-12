@@ -53,7 +53,7 @@ export function ProposalReviewCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <Link
-              href={`/profile/${p.freelancer_id}`}
+              href={`/jobs/${jobId}/proposals/${p.id}`}
               className="font-semibold text-foreground hover:text-primary"
             >
               {name}
