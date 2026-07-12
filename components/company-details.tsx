@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Image from "next/image";
 import { updateCompanyDetails } from "@/app/settings/actions";
+import { usePasswordGate } from "@/components/password-confirm-modal";
 
 // Company details card for the client "My info" page — matches Upwork's
 // middle card (company logo + company name, with an edit pencil).
@@ -16,6 +17,22 @@ export function CompanyDetails({
   const [editing, setEditing] = useState(false);
   const [preview, setPreview] = useState<string>(companyLogo || "");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const { require, modal } = usePasswordGate();
+  const formRef = useRef<HTMLFormElement>(null);
+  const verifiedRef = useRef(false);
+  const guard = async (e: React.FormEvent<HTMLFormElement>) => {
+    if (verifiedRef.current) {
+      verifiedRef.current = false;
+      return;
+    }
+    e.preventDefault();
+    if (!formRef.current?.reportValidity()) return;
+    if (await require()) {
+      verifiedRef.current = true;
+      formRef.current.requestSubmit();
+    }
+  };
 
   const Logo = ({ size = 64 }: { size?: number }) =>
     preview ? (
@@ -65,7 +82,9 @@ export function CompanyDetails({
 
   return (
     <form
+      ref={formRef}
       action={updateCompanyDetails}
+      onSubmit={guard}
       className="rounded-2xl border border-border bg-card p-6 lg:p-8"
     >
       <h3 className="text-xl font-bold text-foreground mb-6">Company details</h3>
@@ -123,6 +142,7 @@ export function CompanyDetails({
           Cancel
         </button>
       </div>
+      {modal}
     </form>
   );
 }

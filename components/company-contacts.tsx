@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { updateCompanyContacts } from "@/app/settings/actions";
+import { usePasswordGate } from "@/components/password-confirm-modal";
 import { PhoneInput } from "@/components/phone-input";
 import { SearchableSelect } from "@/components/searchable-select";
 import { PHONE_COUNTRIES, flagOf } from "@/lib/phone-countries";
@@ -12,6 +13,22 @@ export function CompanyContacts({ owner, p }: { owner: string; p: any }) {
   const has =
     p?.phone || p?.vat_id || p?.time_zone || p?.country || p?.address || p?.city || p?.zip;
   const [editing, setEditing] = useState(!has);
+
+  const { require, modal } = usePasswordGate();
+  const formRef = useRef<HTMLFormElement>(null);
+  const verifiedRef = useRef(false);
+  const guard = async (e: React.FormEvent<HTMLFormElement>) => {
+    if (verifiedRef.current) {
+      verifiedRef.current = false;
+      return;
+    }
+    e.preventDefault();
+    if (!formRef.current?.reportValidity()) return;
+    if (await require()) {
+      verifiedRef.current = true;
+      formRef.current.requestSubmit();
+    }
+  };
 
   const countryOptions = PHONE_COUNTRIES.map((c) => ({
     value: c.name,
@@ -58,7 +75,9 @@ export function CompanyContacts({ owner, p }: { owner: string; p: any }) {
 
   return (
     <form
+      ref={formRef}
       action={updateCompanyContacts}
+      onSubmit={guard}
       className="rounded-2xl border border-border bg-card p-6"
     >
       <h3 className="text-lg font-semibold text-foreground mb-6">
@@ -143,6 +162,7 @@ export function CompanyContacts({ owner, p }: { owner: string; p: any }) {
           )}
         </div>
       </div>
+      {modal}
     </form>
   );
 }

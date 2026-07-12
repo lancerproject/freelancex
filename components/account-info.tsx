@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { updateAccount } from "@/app/settings/actions";
+import { usePasswordGate } from "@/components/password-confirm-modal";
 
 export function AccountInfo({
   fullName,
@@ -23,6 +24,23 @@ export function AccountInfo({
   const [editing, setEditing] = useState(false);
   const isFreelancer = role === "freelancer";
   const planLabel = plan === "pro" ? "Pro" : "Basic";
+
+  // Upwork re-asks for the password before letting you edit account info.
+  const { require, modal } = usePasswordGate();
+  const formRef = useRef<HTMLFormElement>(null);
+  const verifiedRef = useRef(false);
+  const guard = async (e: React.FormEvent<HTMLFormElement>) => {
+    if (verifiedRef.current) {
+      verifiedRef.current = false;
+      return;
+    }
+    e.preventDefault();
+    if (!formRef.current?.reportValidity()) return;
+    if (await require()) {
+      verifiedRef.current = true;
+      formRef.current.requestSubmit();
+    }
+  };
 
   if (!editing) {
     return (
@@ -65,7 +83,9 @@ export function AccountInfo({
 
   return (
     <form
+      ref={formRef}
       action={updateAccount}
+      onSubmit={guard}
       className="rounded-2xl border border-border bg-card p-6"
     >
       <h3 className="text-lg font-semibold text-foreground mb-6">Account</h3>
@@ -160,6 +180,7 @@ export function AccountInfo({
           </div>
         </div>
       </div>
+      {modal}
     </form>
   );
 }
