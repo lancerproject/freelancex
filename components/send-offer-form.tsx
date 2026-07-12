@@ -51,6 +51,15 @@ export function SendOfferForm({
   );
   const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Step 1 = offer details, Step 2 = review / checkout (like Upwork's flow).
+  const [step, setStep] = useState<1 | 2>(1);
+
+  const amtNum = Number(amount) || 0;
+  const feeRate = 0.02; // Xwork client service fee
+  const fee = amtNum * feeRate;
+  const total = amtNum + fee;
+  const money = (n: number) =>
+    n.toLocaleString(undefined, { style: "currency", currency: "USD" });
 
   // One-time "Stay safe" acknowledgement before the offer form.
   const [safetyOk, setSafetyOk] = useState(true);
@@ -138,6 +147,8 @@ export function SendOfferForm({
         value={JSON.stringify(cleanMilestones)}
       />
 
+      {/* ===================== STEP 1: offer details ===================== */}
+      <div className={step === 1 ? "space-y-8" : "hidden"}>
       {/* ---------------- Job details ---------------- */}
       <section className="rounded-2xl border border-border bg-card p-6 lg:p-8 space-y-5">
         <h2 className="text-xl font-bold text-foreground">Job details</h2>
@@ -406,7 +417,7 @@ export function SendOfferForm({
         </label>
       </section>
 
-      {/* Actions */}
+      {/* Step 1 actions */}
       <div className="flex items-center gap-4">
         <Link
           href={jobId ? `/jobs/${jobId}?tab=proposals` : "/offers"}
@@ -415,12 +426,91 @@ export function SendOfferForm({
           Cancel
         </Link>
         <button
-          type="submit"
-          disabled={!valid || busy}
+          type="button"
+          disabled={!valid}
+          onClick={() => valid && setStep(2)}
           className="bg-primary text-primary-foreground rounded-full px-10 py-3 font-semibold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {busy ? "Sending…" : "Continue"}
+          Continue
         </button>
+      </div>
+      </div>
+      {/* end step 1 */}
+
+      {/* ===================== STEP 2: review / checkout ===================== */}
+      <div className={step === 2 ? "space-y-6" : "hidden"}>
+        <button
+          type="button"
+          onClick={() => setStep(1)}
+          className="text-sm text-primary hover:underline"
+        >
+          ← Back to offer details
+        </button>
+        <h2 className="text-2xl font-bold text-foreground">
+          Hire {freelancerName}
+        </h2>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+          {/* Billing method (comes online with the payment gateway) */}
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <h3 className="text-lg font-bold text-foreground">
+              Add a billing method
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Card and PayPal payments become available once Xwork payments go
+              live. For now, send the offer — you&apos;ll fund the milestone in
+              escrow after {freelancerName} accepts.
+            </p>
+            <div className="mt-4 space-y-2 opacity-60">
+              <div className="flex items-center gap-2 border border-border rounded-lg px-3 py-2.5 text-sm">
+                <input type="radio" disabled className="accent-primary" />
+                💳 Debit or credit card
+              </div>
+              <div className="flex items-center gap-2 border border-border rounded-lg px-3 py-2.5 text-sm">
+                <input type="radio" disabled className="accent-primary" />
+                🅿️ PayPal
+              </div>
+            </div>
+          </div>
+
+          {/* Order summary */}
+          <aside className="rounded-2xl border border-border bg-card p-6">
+            <p className="font-semibold text-foreground">
+              Hire {freelancerName}
+              {title ? ` for: ${title}` : ""}
+            </p>
+            <div className="border-t border-border mt-4 pt-4 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="text-foreground">{money(amtNum)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">
+                  Xwork service fee (2%)
+                </span>
+                <span className="text-foreground">{money(fee)}</span>
+              </div>
+              <div className="flex justify-between font-semibold pt-2 border-t border-border">
+                <span className="text-foreground">Estimated total</span>
+                <span className="text-foreground">{money(total)}</span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              🛡️ Xwork Payment Protection — funds are held in escrow and released
+              only when you approve the work.
+            </p>
+            <button
+              type="submit"
+              disabled={!valid || busy}
+              className="mt-4 w-full bg-primary text-primary-foreground rounded-full px-6 py-2.5 font-semibold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {busy ? "Sending…" : "Send offer"}
+            </button>
+            <p className="text-[11px] text-muted-foreground mt-2 text-center">
+              No charge now — nothing is billed until you fund the work.
+            </p>
+          </aside>
+        </div>
       </div>
     </form>
   );
