@@ -5,6 +5,31 @@ import { detectOffPlatform, recordWarning } from "@/lib/moderation";
 import { isRateLimited } from "@/lib/rate-limit";
 import { notify } from "@/lib/notify";
 
+// Mark the OTHER participant's messages in a conversation as read. Callable
+// from the client so read receipts update LIVE while the chat is open (not just
+// on page load) — the resulting UPDATE broadcasts over realtime so the sender
+// sees "Seen" immediately. Symmetric for both client and freelancer.
+export async function markConversationRead(
+  conversationId: string
+): Promise<{ ok: boolean }> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { ok: false };
+    await supabase
+      .from("messages")
+      .update({ read: true })
+      .eq("conversation_id", conversationId)
+      .neq("sender_id", user.id)
+      .eq("read", false);
+    return { ok: true };
+  } catch {
+    return { ok: false };
+  }
+}
+
 // Notify the OTHER participant of a conversation about a new message. Creates
 // an in-app notification and (once an email sender is configured) an email,
 // both gated by the recipient's "Messages" notification preference. Best-effort

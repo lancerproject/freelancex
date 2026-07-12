@@ -6,6 +6,7 @@ import { getBrowserSupabase } from "@/lib/supabase-browser";
 import {
   sendChatMessage,
   sendChatAttachment,
+  markConversationRead,
 } from "@/app/(dashboard)/messages/actions";
 import {
   toggleSaveMessage,
@@ -185,6 +186,24 @@ export function ChatThread({
       supabase.removeChannel(channel);
     };
   }, [conversationId, supabase]);
+
+  // Mark the other person's messages read as soon as they're on screen (on
+  // mount and whenever a new one arrives via realtime), so the SENDER sees
+  // "Seen" live — works the same for client and freelancer. We optimistically
+  // flip them locally so this doesn't re-fire; the sender gets the real read
+  // state from the UPDATE this broadcasts.
+  useEffect(() => {
+    const hasUnreadIncoming = messages.some(
+      (m) => m.sender_id !== userId && !m.read
+    );
+    if (!hasUnreadIncoming) return;
+    markConversationRead(conversationId).catch(() => {});
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.sender_id !== userId && !m.read ? { ...m, read: true } : m
+      )
+    );
+  }, [messages, conversationId, userId]);
 
   // Deep link: /messages/{id}#msg-{messageId} scrolls to and highlights it.
   useEffect(() => {
