@@ -48,11 +48,11 @@ export async function updateAccount(formData: FormData) {
     const { error: emailErr } = await supabase.auth.updateUser({
       email: newEmail,
     });
-    if (!emailErr) redirect("/settings?email_sent=1");
-    redirect(`/settings?emailerror=${encodeURIComponent(emailErr.message)}`);
+    if (!emailErr) redirect("/settings/my-info?email_sent=1");
+    redirect(`/settings/my-info?emailerror=${encodeURIComponent(emailErr.message)}`);
   }
 
-  redirect("/settings?saved=1");
+  redirect("/settings/my-info?saved=1");
 }
 
 // Step 1 of closing: email a one-time code (uses Supabase's built-in email OTP).
@@ -134,5 +134,61 @@ export async function updateCompanyContacts(formData: FormData) {
     })
     .eq("id", user.id);
 
-  redirect("/settings?saved=1");
+  redirect("/settings/my-info?saved=1");
+}
+
+// Company details (name + logo) — the client "My info" middle card.
+export async function updateCompanyDetails(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const update: any = {
+    company_name: ((formData.get("company_name") as string) || "").trim() || null,
+  };
+
+  // Optional logo upload (same bucket + pattern as the avatar upload).
+  const file = formData.get("company_logo_file") as File | null;
+  if (file && typeof file !== "string" && file.size > 0) {
+    const ext = (file.name.split(".").pop() || "png").toLowerCase();
+    const path = `company-logos/${user.id}/${Date.now()}.${ext}`;
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const { error: upErr } = await supabase.storage
+      .from("project-files")
+      .upload(path, bytes, {
+        contentType: file.type || "image/png",
+        upsert: true,
+      });
+    if (!upErr) {
+      const { data: pub } = supabase.storage
+        .from("project-files")
+        .getPublicUrl(path);
+      update.company_logo = pub.publicUrl;
+    } else {
+      console.error("COMPANY LOGO UPLOAD ERROR:", upErr);
+    }
+  }
+
+  await supabase.from("profiles").update(update).eq("id", user.id);
+  redirect("/settings/my-info?saved=1");
+}
+
+// AI data preference — opt in/out of using account data to improve models.
+export async function setAiPreference(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const optOut = formData.get("opt_out") === "1";
+  await supabase
+    .from("profiles")
+    .update({ ai_data_opt_out: optOut })
+    .eq("id", user.id);
+
+  redirect("/settings/my-info?saved=1");
 }

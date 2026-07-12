@@ -10,6 +10,7 @@ export function AccountInfo({
   email,
   avatarUrl,
   role,
+  plan,
 }: {
   fullName: string;
   firstName: string;
@@ -17,9 +18,11 @@ export function AccountInfo({
   email: string;
   avatarUrl?: string | null;
   role?: string;
+  plan?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const isFreelancer = role === "freelancer";
+  const planLabel = plan === "pro" ? "Pro" : "Basic";
 
   if (!editing) {
     return (
@@ -51,7 +54,7 @@ export function AccountInfo({
             <p className="text-xl font-bold text-foreground">
               {fullName || "—"}
             </p>
-            <p className="text-sm text-muted-foreground mt-1">Basic</p>
+            <p className="text-sm text-muted-foreground mt-1">{planLabel}</p>
             <p className="text-sm text-muted-foreground mt-3">Email</p>
             <p className="text-foreground">{email}</p>
           </div>

@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const GROUPS: { title: string; items: { label: string; href: string }[] }[] = [
+type Group = { title: string; items: { label: string; href: string }[] };
+
+// Freelancer settings (unchanged).
+const FREELANCER_GROUPS: Group[] = [
   {
     title: "Billing",
     items: [
@@ -28,8 +31,25 @@ const GROUPS: { title: string; items: { label: string; href: string }[] }[] = [
   },
 ];
 
-export default function SettingsNav() {
+// Client settings — mirrors Upwork's client Account Settings menu (minus the
+// features we intentionally skip: Teams & Members, Membership, Identity).
+const CLIENT_GROUPS: Group[] = [
+  {
+    title: "Settings",
+    items: [
+      { label: "My info", href: "/settings/my-info" },
+      { label: "Billing & Payments", href: "/settings/billing" },
+      { label: "Password & Security", href: "/settings/security" },
+      { label: "Notification Settings", href: "/settings/notifications" },
+      { label: "Tax Information", href: "/settings/tax" },
+      { label: "Connected Services", href: "/settings/connected" },
+    ],
+  },
+];
+
+export default function SettingsNav({ role }: { role?: string }) {
   const pathname = usePathname();
+  const GROUPS = role === "client" ? CLIENT_GROUPS : FREELANCER_GROUPS;
   return (
     <nav className="flex flex-col gap-5">
       {GROUPS.map((g) => (
