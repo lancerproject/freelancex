@@ -6,6 +6,7 @@
 
 import { createClient } from "@/lib/supabase-server";
 import { notify } from "@/lib/notify";
+import { redirect } from "next/navigation";
 
 async function authed() {
   const supabase = await createClient();
@@ -345,13 +346,45 @@ export async function proposeContract(params: {
   await notify(
     supabase,
     clientId,
-    "message",
+    "contract",
     `📝 ${me?.full_name || "A freelancer"} proposed a contract`,
     `"${title}" — $${amount}${params.rateType === "hourly" ? "/hr" : ""}. Review it in your chat and send an offer if it works for you.`,
     `/messages/${params.conversationId}`
   );
 
   return { ok: true };
+}
+
+// Form-based wrapper for the freelancer's "Propose a contract" PAGE — reads
+// FormData and reuses proposeContract, then returns to the conversation.
+export async function proposeContractForm(formData: FormData) {
+  const conversationId = String(formData.get("conversation_id") || "");
+  let milestones: { name: string; amount: number; due_date?: string }[] = [];
+  try {
+    const raw = JSON.parse(String(formData.get("milestones") || "[]"));
+    if (Array.isArray(raw)) {
+      milestones = raw.map(
+        (m: { name?: string; amount?: string | number; due_date?: string }) => ({
+          name: m.name ?? "",
+          amount: Number(m.amount) || 0,
+          due_date: m.due_date || undefined,
+        })
+      );
+    }
+  } catch {
+    /* ignore */
+  }
+  const res = await proposeContract({
+    conversationId,
+    title: String(formData.get("title") || ""),
+    amount: Number(formData.get("amount")) || 0,
+    rateType: "fixed",
+    duration: String(formData.get("duration") || ""),
+    description: String(formData.get("description") || ""),
+    milestones,
+  });
+  if (res.ok) redirect(`/messages/${conversationId}?proposed=1`);
+  redirect(`/propose/${conversationId}?error=1`);
 }
 
 // Any contract that counts as an ACTIVE working relationship between two

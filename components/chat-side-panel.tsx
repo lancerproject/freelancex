@@ -2,12 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
-import {
-  proposeContract,
-  saveConversationNote,
-} from "@/app/(dashboard)/messages/inbox-actions";
+import { saveConversationNote } from "@/app/(dashboard)/messages/inbox-actions";
 
 // The right-hand detail panel in a conversation — Upwork-style collapsible
 // sections: activity timeline, search messages, client profile, files & links,
@@ -89,7 +85,6 @@ export function ChatSidePanel({
   myNote?: string | null;
 }) {
   const [query, setQuery] = useState("");
-  const [proposeOpen, setProposeOpen] = useState(false);
   const [note, setNote] = useState(myNote ?? "");
   const [noteBusy, setNoteBusy] = useState(false);
   const [noteSaved, setNoteSaved] = useState(false);
@@ -427,15 +422,14 @@ export function ChatSidePanel({
         </Section>
       )}
 
-      {/* Propose contract (freelancer) */}
+      {/* Propose contract (freelancer) — opens the full propose page */}
       {viewerIsFreelancer && !ended && (
-        <button
-          type="button"
-          onClick={() => setProposeOpen(true)}
-          className="w-full bg-primary text-primary-foreground rounded-full px-4 py-2.5 text-sm font-semibold hover:opacity-90"
+        <Link
+          href={`/propose/${conversationId}`}
+          className="block w-full text-center bg-primary text-primary-foreground rounded-full px-4 py-2.5 text-sm font-semibold hover:opacity-90"
         >
-          📝 Propose contract
-        </button>
+          📝 Propose a contract
+        </Link>
       )}
 
       {/* Send offer (client) */}
@@ -448,12 +442,6 @@ export function ChatSidePanel({
         </Link>
       )}
 
-      {proposeOpen && (
-        <ProposeContractModal
-          conversationId={conversationId}
-          onClose={() => setProposeOpen(false)}
-        />
-      )}
     </div>
   );
 }
@@ -480,225 +468,5 @@ function Section({
       </summary>
       <div className="px-3 pb-3">{children}</div>
     </details>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Propose-contract modal — mirrors the client's SendOfferForm fields. The
-// client responds with a real (prefilled) offer or declines.
-// ---------------------------------------------------------------------------
-function ProposeContractModal({
-  conversationId,
-  onClose,
-}: {
-  conversationId: string;
-  onClose: () => void;
-}) {
-  const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [amount, setAmount] = useState("");
-  const [duration, setDuration] = useState("");
-  const [description, setDescription] = useState("");
-  const [milestones, setMilestones] = useState<
-    { name: string; amount: string; due_date: string }[]
-  >([]);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
-
-  const valid =
-    title.trim().length > 0 &&
-    Number(amount) > 0 &&
-    description.trim().length > 0;
-
-  const submit = async () => {
-    if (!valid || busy) return;
-    setErr(null);
-    setBusy(true);
-    const res = await proposeContract({
-      conversationId,
-      title,
-      amount: Number(amount),
-      rateType: "fixed", // Xwork contracts are fixed-price with milestones
-      duration,
-      description,
-      milestones: milestones.map((m) => ({
-        name: m.name,
-        amount: Number(m.amount) || 0,
-        due_date: m.due_date || undefined,
-      })),
-    }).catch(() => ({ ok: false, error: "Something went wrong." }));
-    setBusy(false);
-    if (res.ok) {
-      setDone(true);
-      setTimeout(() => {
-        onClose();
-        router.refresh();
-      }, 1200);
-    } else {
-      setErr(("error" in res && res.error) || "Couldn't send the proposal.");
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="bg-card rounded-2xl border border-border max-w-lg w-full p-6 max-h-[85vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-xl font-bold text-foreground">Propose a contract</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Suggest terms to the client. If they accept, they&apos;ll send you a
-          formal offer to review — payment stays protected on Xwork.
-        </p>
-
-        {done ? (
-          <p className="text-primary font-medium mt-5">
-            ✅ Proposal sent! It now appears in this chat.
-          </p>
-        ) : (
-          <>
-            <label className="block mt-4 text-sm font-medium text-foreground">
-              Title
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Landing page design and build"
-                className="mt-1 w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground text-sm"
-              />
-            </label>
-
-            <label className="block mt-3 text-sm font-medium text-foreground">
-              Fixed price (USD)
-              <input
-                type="number"
-                min={1}
-                step="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="mt-1 w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground text-sm"
-              />
-            </label>
-
-            <label className="block mt-3 text-sm font-medium text-foreground">
-              Duration (optional)
-              <input
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                placeholder="e.g. 2 weeks, 3 months, long term"
-                className="mt-1 w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground text-sm"
-              />
-            </label>
-
-            <label className="block mt-3 text-sm font-medium text-foreground">
-              What you&apos;ll deliver
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={4}
-                placeholder="Scope, deliverables and expectations…"
-                className="mt-1 w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground text-sm"
-              />
-            </label>
-
-            {/* Milestones */}
-            <div className="mt-3">
-              <p className="text-sm font-medium text-foreground">
-                Milestones (optional)
-              </p>
-              {milestones.map((m, i) => (
-                <div key={i} className="flex items-center gap-2 mt-2">
-                  <input
-                    value={m.name}
-                    onChange={(e) =>
-                      setMilestones((prev) =>
-                        prev.map((x, xi) =>
-                          xi === i ? { ...x, name: e.target.value } : x
-                        )
-                      )
-                    }
-                    placeholder="Milestone name"
-                    className="flex-1 border border-border rounded-lg px-3 py-2 bg-background text-foreground text-sm"
-                  />
-                  <input
-                    type="number"
-                    min={1}
-                    value={m.amount}
-                    onChange={(e) =>
-                      setMilestones((prev) =>
-                        prev.map((x, xi) =>
-                          xi === i ? { ...x, amount: e.target.value } : x
-                        )
-                      )
-                    }
-                    placeholder="$"
-                    className="w-24 border border-border rounded-lg px-3 py-2 bg-background text-foreground text-sm"
-                  />
-                  <input
-                    type="date"
-                    value={m.due_date}
-                    onChange={(e) =>
-                      setMilestones((prev) =>
-                        prev.map((x, xi) =>
-                          xi === i ? { ...x, due_date: e.target.value } : x
-                        )
-                      )
-                    }
-                    className="w-36 border border-border rounded-lg px-3 py-2 bg-background text-foreground text-sm"
-                  />
-                  <button
-                    type="button"
-                    aria-label="Remove milestone"
-                    onClick={() =>
-                      setMilestones((prev) => prev.filter((_, xi) => xi !== i))
-                    }
-                    className="text-muted-foreground hover:text-red-500"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() =>
-                  setMilestones((prev) => [
-                    ...prev,
-                    { name: "", amount: "", due_date: "" },
-                  ])
-                }
-                className="text-primary text-sm font-medium hover:underline mt-2"
-              >
-                + Add milestone
-              </button>
-            </div>
-
-            {err && <p className="text-sm text-red-500 mt-3">{err}</p>}
-
-            <div className="flex justify-end gap-3 mt-5">
-              <button
-                type="button"
-                onClick={onClose}
-                className="text-foreground text-sm font-medium hover:underline"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={submit}
-                disabled={!valid || busy}
-                className="bg-primary text-primary-foreground rounded-full px-6 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-40"
-              >
-                {busy ? "Sending…" : "Send proposal"}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
   );
 }

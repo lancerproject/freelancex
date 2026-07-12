@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { sendOffer } from "@/app/offers/actions";
+import { proposeContractForm } from "@/app/(dashboard)/messages/inbox-actions";
 
 // Client's "Send an offer" form — mirrors Upwork's offer page: Job details +
 // Contract terms (payment protection, amount, payment schedule, due date, FAQ)
@@ -13,6 +14,8 @@ type MilestoneRow = { name: string; amount: string; due_date: string };
 const SAFETY_KEY = "xwork_offer_safety_ack";
 
 export function SendOfferForm({
+  mode = "offer",
+  conversationId,
   freelancerId,
   freelancerName,
   jobId,
@@ -25,6 +28,10 @@ export function SendOfferForm({
   defaultDescription,
   defaultMilestones,
 }: {
+  // "offer" = client sending an offer (2-step, funds later). "propose" =
+  // freelancer proposing a contract to the client (single step, no checkout).
+  mode?: "offer" | "propose";
+  conversationId?: string;
   freelancerId: string;
   freelancerName: string;
   jobId?: string;
@@ -38,6 +45,7 @@ export function SendOfferForm({
   defaultDescription?: string;
   defaultMilestones?: MilestoneRow[];
 }) {
+  const isPropose = mode === "propose";
   const [title, setTitle] = useState(defaultTitle ?? "");
   const [amount, setAmount] = useState(
     defaultAmount ? String(defaultAmount) : ""
@@ -84,7 +92,7 @@ export function SendOfferForm({
     "w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring";
   const label = "block text-sm font-semibold text-foreground mb-1";
 
-  if (!safetyOk) {
+  if (!isPropose && !safetyOk) {
     return (
       <div className="rounded-2xl border border-border bg-card p-6 lg:p-8">
         <div className="text-4xl">🛡️</div>
@@ -133,7 +141,14 @@ export function SendOfferForm({
   }
 
   return (
-    <form action={sendOffer} onSubmit={() => setBusy(true)} className="space-y-8">
+    <form
+      action={isPropose ? proposeContractForm : sendOffer}
+      onSubmit={() => setBusy(true)}
+      className="space-y-8"
+    >
+      {isPropose && conversationId && (
+        <input type="hidden" name="conversation_id" value={conversationId} />
+      )}
       <input type="hidden" name="freelancer_id" value={freelancerId} />
       {jobId && <input type="hidden" name="job_id" value={jobId} />}
       {proposalId && (
@@ -425,14 +440,24 @@ export function SendOfferForm({
         >
           Cancel
         </Link>
-        <button
-          type="button"
-          disabled={!valid}
-          onClick={() => valid && setStep(2)}
-          className="bg-primary text-primary-foreground rounded-full px-10 py-3 font-semibold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          Continue
-        </button>
+        {isPropose ? (
+          <button
+            type="submit"
+            disabled={!valid || busy}
+            className="bg-primary text-primary-foreground rounded-full px-10 py-3 font-semibold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {busy ? "Sending…" : "Propose contract"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={!valid}
+            onClick={() => valid && setStep(2)}
+            className="bg-primary text-primary-foreground rounded-full px-10 py-3 font-semibold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Continue
+          </button>
+        )}
       </div>
       </div>
       {/* end step 1 */}
