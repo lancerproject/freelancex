@@ -29,6 +29,13 @@ export function ProposalReviewCard({
   const loc =
     prof?.location ||
     [prof?.city, prof?.country].filter(Boolean).join(", ");
+  // Show the freelancer's profile hourly rate (like Upwork), falling back to
+  // their job bid only if they haven't set a rate.
+  const rate = prof?.hourly_rate
+    ? `$${Number(prof.hourly_rate)}/hr`
+    : p.bid_amount
+      ? `$${p.bid_amount}`
+      : "—";
   const name = prof?.full_name || "Freelancer";
   const skills = String(prof?.skills || "")
     .split(",")
@@ -149,7 +156,7 @@ export function ProposalReviewCard({
 
       {/* Rate · earned · Job Success */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-sm">
-        <span className="font-medium text-foreground">${p.bid_amount}</span>
+        <span className="font-medium text-foreground">{rate}</span>
         <span className="text-muted-foreground">{earnedLabel(earned)}</span>
         {jss > 0 && (
           <span className="text-muted-foreground">
