@@ -1,10 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { COUNTRIES } from "@/lib/countries";
 import { TIMEZONES, timezoneLabel } from "@/lib/timezones";
 import { updateLocation } from "@/app/settings/contact/actions";
-import { usePasswordGate } from "@/components/password-confirm-modal";
 import { PhoneVerify } from "@/components/phone-verify";
 
 export function ContactLocationCard({
@@ -29,23 +28,6 @@ export function ContactLocationCard({
   phoneVerified: boolean;
 }) {
   const [editing, setEditing] = useState(false);
-  const { require, modal } = usePasswordGate();
-  const formRef = useRef<HTMLFormElement>(null);
-  const verifiedRef = useRef(false);
-
-  // Confirm the password before the form submits (see contact-account-card).
-  const guard = async (e: React.FormEvent<HTMLFormElement>) => {
-    if (verifiedRef.current) {
-      verifiedRef.current = false;
-      return;
-    }
-    e.preventDefault();
-    if (!formRef.current?.reportValidity()) return;
-    if (await require()) {
-      verifiedRef.current = true;
-      formRef.current.requestSubmit();
-    }
-  };
 
   const inputCls =
     "w-full bg-background border border-border text-foreground rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring";
@@ -87,12 +69,7 @@ export function ContactLocationCard({
       </div>
 
       {editing ? (
-        <form
-          ref={formRef}
-          action={updateLocation}
-          onSubmit={guard}
-          className="mt-6 space-y-6"
-        >
+        <form action={updateLocation} className="mt-6 space-y-6">
           {/* Time Zone | Country */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
@@ -203,7 +180,6 @@ export function ContactLocationCard({
           </div>
         </>
       )}
-      {modal}
     </div>
   );
 }

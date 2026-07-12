@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { updateAccount } from "@/app/settings/contact/actions";
-import { usePasswordGate } from "@/components/password-confirm-modal";
 
 function maskEmail(email: string): string {
   if (!email) return "—";
@@ -23,28 +22,6 @@ export function ContactAccountCard({
   email: string;
 }) {
   const [editing, setEditing] = useState(false);
-  const { require, modal } = usePasswordGate();
-  const formRef = useRef<HTMLFormElement>(null);
-  const verifiedRef = useRef(false);
-
-  // Confirm the password before the form actually submits. requestSubmit()
-  // re-fires this handler with verifiedRef set, which lets the real submit
-  // (and its server action) proceed.
-  const guard = async (e: React.FormEvent<HTMLFormElement>) => {
-    if (verifiedRef.current) {
-      verifiedRef.current = false;
-      return;
-    }
-    e.preventDefault();
-    // Validate the form FIRST (shows the browser's native messages). Otherwise
-    // requestSubmit() below would be blocked by validation while verifiedRef
-    // stays true — letting a later submit skip the password prompt.
-    if (!formRef.current?.reportValidity()) return;
-    if (await require()) {
-      verifiedRef.current = true;
-      formRef.current.requestSubmit();
-    }
-  };
 
   const parts = (fullName || "").trim().split(/\s+/).filter(Boolean);
   const firstName = parts[0] || "";
@@ -78,12 +55,7 @@ export function ContactAccountCard({
       </div>
 
       {editing ? (
-        <form
-          ref={formRef}
-          action={updateAccount}
-          onSubmit={guard}
-          className="mt-6 space-y-5"
-        >
+        <form action={updateAccount} className="mt-6 space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelCls}>First name</label>
@@ -139,7 +111,6 @@ export function ContactAccountCard({
           </div>
         </>
       )}
-      {modal}
     </div>
   );
 }
