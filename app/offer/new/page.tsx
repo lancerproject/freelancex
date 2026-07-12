@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
 import { redirect, notFound } from "next/navigation";
 import { SendOfferForm } from "@/components/send-offer-form";
+import { LocalTime } from "@/components/local-time";
 
 export const metadata = { title: "Send an offer | Xwork" };
 
@@ -86,35 +87,45 @@ export default async function NewOfferPage({
 
   const { data: freelancer } = await supabase
     .from("profiles")
-    .select("id, full_name")
+    .select("id, full_name, title, avatar_url, location, country, city, timezone")
     .eq("id", freelancerId)
     .maybeSingle();
   if (!freelancer) notFound();
   const freelancerName = freelancer.full_name || "this freelancer";
+  const freelancerLoc =
+    freelancer.location ||
+    [freelancer.city, freelancer.country].filter(Boolean).join(", ");
+
+  // Related job title for the "Job details" link.
+  let jobTitle: string | undefined = defaultTitle || undefined;
+  if (jobId) {
+    const { data: jobRow } = await supabase
+      .from("jobs")
+      .select("title")
+      .eq("id", jobId)
+      .maybeSingle();
+    if (jobRow?.title) jobTitle = jobRow.title;
+  }
 
   return (
-    <main className="min-h-screen px-4 lg:px-16 py-8 w-full">
-      <div className="max-w-2xl mx-auto">
-        <Link
-          href={jobId ? `/jobs/${jobId}?tab=proposals` : "/offers"}
-          className="text-sm text-primary hover:underline"
-        >
-          ← Back
-        </Link>
-        <h1 className="text-3xl font-bold text-foreground mt-3">
-          Send a job offer
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1 mb-6">
-          {freelancerName} will be able to review everything below and accept
-          or decline. Nothing is charged until you fund a milestone on the
-          contract.
-        </p>
+    <main className="min-h-screen px-4 lg:px-16 py-8 w-full max-w-6xl mx-auto">
+      <Link
+        href={jobId ? `/jobs/${jobId}?tab=proposals` : "/offers"}
+        className="text-sm text-primary hover:underline"
+      >
+        ← Back
+      </Link>
+      <h1 className="text-3xl font-bold text-foreground mt-3 mb-6">
+        Send an offer
+      </h1>
 
-        <div className="rounded-2xl border border-border bg-card p-6 lg:p-8">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 items-start">
+        <div>
           <SendOfferForm
             freelancerId={freelancerId}
             freelancerName={freelancerName}
             jobId={jobId || undefined}
+            jobTitle={jobTitle}
             proposalId={proposalId || undefined}
             requestId={requestId || undefined}
             defaultTitle={defaultTitle}
@@ -125,6 +136,47 @@ export default async function NewOfferPage({
             defaultMilestones={defaultMilestones}
           />
         </div>
+
+        {/* Freelancer summary (right sidebar, like Upwork) */}
+        <aside className="rounded-2xl border border-border bg-card p-5 lg:sticky lg:top-6">
+          <div className="flex items-center gap-3">
+            {freelancer.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={freelancer.avatar_url}
+                alt=""
+                className="w-14 h-14 rounded-full object-cover border border-border"
+              />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl font-bold">
+                {freelancerName.slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0">
+              <Link
+                href={`/profile/${freelancerId}`}
+                className="font-semibold text-foreground hover:text-primary block truncate"
+              >
+                {freelancerName}
+              </Link>
+              {freelancer.title && (
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  {freelancer.title}
+                </p>
+              )}
+            </div>
+          </div>
+          {freelancerLoc && (
+            <p className="text-sm text-foreground mt-3">
+              {freelancerLoc}
+              <span className="text-muted-foreground">
+                {" · "}
+                <LocalTime timezone={freelancer.timezone ?? undefined} /> local
+                time
+              </span>
+            </p>
+          )}
+        </aside>
       </div>
     </main>
   );
