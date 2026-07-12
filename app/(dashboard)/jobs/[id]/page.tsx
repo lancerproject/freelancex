@@ -1,13 +1,9 @@
-import { hireFreelancer } from "@/app/proposals/actions";
 import { ProposalsViewedPinger } from "@/components/proposals-viewed-pinger";
+import { ProposalReviewCard } from "@/components/proposal-review-card";
 import { createClient } from "@/lib/supabase-server";
 import { notFound, redirect } from "next/navigation";
 import { toggleSaveJob } from "@/app/saved/actions";
-import {
-  deleteJob,
-  inviteToJob,
-  messageFreelancer,
-} from "@/app/(dashboard)/jobs/actions";
+import { deleteJob, inviteToJob } from "@/app/(dashboard)/jobs/actions";
 import { EXPERIENCE_LEVELS, DURATIONS, labelFor } from "@/lib/categories";
 import { LocalTime } from "@/components/local-time";
 import { CopyLink } from "@/components/copy-link";
@@ -22,7 +18,6 @@ import { OtherOpenJobs } from "@/components/other-open-jobs";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { getMembership } from "@/lib/membership";
 import { ProBadge } from "@/components/pro-badge";
-import { talentBadgeMeta } from "@/lib/talent-badges";
 import Link from "next/link";
 
 // Relative "time ago" for when a job was posted (e.g. "2 hours ago").
@@ -71,7 +66,7 @@ export default async function JobDetailsPage({
   const { data: proposalsRaw } = await supabase
     .from("proposals")
     .select(
-      `*, profiles ( id, full_name, skills, title, hourly_rate, plan, membership_status, membership_end_date, membership_autorenew, talent_badge )`
+      `*, profiles ( id, full_name, skills, title, hourly_rate, plan, membership_status, membership_end_date, membership_autorenew, talent_badge, avatar_url, location )`
     )
     .eq("job_id", id)
     .order("created_at", { ascending: false });
@@ -592,119 +587,71 @@ export default async function JobDetailsPage({
                       </Link>
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      {proposals?.map((p) => {
-                        const prof = Array.isArray(p.profiles)
-                          ? p.profiles[0]
-                          : p.profiles;
+                    (() => {
+                      const active = (proposals ?? []).filter(
+                        (p) => !p.archived
+                      );
+                      if (active.length === 0) {
                         return (
-                          <div
-                            key={p.id}
-                            className="rounded-2xl border border-border bg-card p-5"
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <p className="font-semibold text-foreground flex items-center gap-2 flex-wrap">
-                                {prof?.full_name || "Freelancer"}
-                                {p.is_pro && <ProBadge size="sm" />}
-                                {(() => {
-                                  const tb = talentBadgeMeta(prof?.talent_badge);
-                                  return tb ? (
-                                    <span
-                                      title={tb.title}
-                                      className={`inline-flex items-center gap-1 text-[10px] rounded-full px-1.5 py-0.5 font-semibold ${tb.className}`}
-                                    >
-                                      {tb.icon} {tb.label}
-                                    </span>
-                                  ) : null;
-                                })()}
-                              </p>
-                              <span className="text-foreground font-medium">
-                                ${p.bid_amount} · {p.delivery_days}d
-                              </span>
-                            </div>
-                            {prof?.title && (
-                              <p className="text-sm text-muted-foreground">
-                                {prof.title}
-                              </p>
-                            )}
-                            {p.cover_letter && (
-                              <p className="text-sm text-foreground mt-2">
-                                {p.cover_letter}
-                              </p>
-                            )}
-                            <div className="flex items-center gap-3 mt-3 flex-wrap">
-                              <Link
-                                href={`/profile/${p.freelancer_id}`}
-                                className="text-primary hover:underline text-sm font-medium"
-                              >
-                                View profile
-                              </Link>
-                              {p.status !== "accepted" &&
-                                (convoByFreelancer[p.freelancer_id] ? (
-                                  <Link
-                                    href={`/messages/${convoByFreelancer[p.freelancer_id]}`}
-                                    className="border border-border text-foreground px-4 py-1.5 rounded-full text-sm font-medium hover:bg-secondary"
-                                  >
-                                    Continue chat
-                                  </Link>
-                                ) : (
-                                  <form
-                                    action={messageFreelancer.bind(
-                                      null,
-                                      id,
-                                      p.freelancer_id
-                                    )}
-                                  >
-                                    <button className="border border-border text-foreground px-4 py-1.5 rounded-full text-sm font-medium hover:bg-secondary">
-                                      Message
-                                    </button>
-                                  </form>
-                                ))}
-                              {p.status === "pending" ? (
-                                <>
-                                  <Link
-                                    href={`/offer/new?job=${id}&proposal=${p.id}`}
-                                    className="border border-primary/40 text-primary px-4 py-1.5 rounded-full text-sm font-medium hover:bg-primary/5"
-                                  >
-                                    Send offer
-                                  </Link>
-                                  <form action={hireFreelancer.bind(null, p.id)}>
-                                    <button className="bg-primary hover:bg-primary text-white px-4 py-1.5 rounded-full text-sm font-medium">
-                                      Hire
-                                    </button>
-                                  </form>
-                                </>
-                              ) : p.status === "accepted" ? (
-                                <span className="text-primary text-sm font-semibold">
-                                  Hired
-                                </span>
-                              ) : null}
-                            </div>
-                          </div>
+                          <p className="text-muted-foreground text-sm py-8 text-center">
+                            All proposals are archived. Check the Archived tab.
+                          </p>
                         );
-                      })}
-                    </div>
+                      }
+                      return (
+                        <div className="space-y-4">
+                          {active.map((p) => (
+                            <ProposalReviewCard
+                              key={p.id}
+                              p={p}
+                              jobId={id}
+                              convoId={convoByFreelancer[p.freelancer_id] ?? null}
+                            />
+                          ))}
+                        </div>
+                      );
+                    })()
                   ))}
 
                 {/* SHORTLISTED */}
-                {pSub === "shortlisted" && (
-                  <div className="text-center py-16">
-                    <div className="text-5xl mb-4">💼</div>
-                    <p className="text-xl font-semibold text-foreground">
-                      Shortlist your top candidates
-                    </p>
-                    <p className="text-muted-foreground text-sm mt-2">
-                      Proposals you shortlist will appear here so you can
-                      compare them and make offers.
-                    </p>
-                    <Link
-                      href={`/jobs/${id}?tab=proposals&sub=all`}
-                      className="inline-block mt-5 bg-primary text-primary-foreground px-6 py-2.5 rounded-full font-semibold hover:opacity-90"
-                    >
-                      View all proposals
-                    </Link>
-                  </div>
-                )}
+                {pSub === "shortlisted" &&
+                  (() => {
+                    const shortlisted = (proposals ?? []).filter(
+                      (p) => p.shortlisted && !p.archived
+                    );
+                    if (shortlisted.length === 0) {
+                      return (
+                        <div className="text-center py-16">
+                          <div className="text-5xl mb-4">💼</div>
+                          <p className="text-xl font-semibold text-foreground">
+                            Shortlist your top candidates
+                          </p>
+                          <p className="text-muted-foreground text-sm mt-2">
+                            Tap 👍 on a proposal to shortlist it. Shortlisted
+                            candidates appear here so you can compare them.
+                          </p>
+                          <Link
+                            href={`/jobs/${id}?tab=proposals&sub=all`}
+                            className="inline-block mt-5 bg-primary text-primary-foreground px-6 py-2.5 rounded-full font-semibold hover:opacity-90"
+                          >
+                            View all proposals
+                          </Link>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="space-y-4">
+                        {shortlisted.map((p) => (
+                          <ProposalReviewCard
+                            key={p.id}
+                            p={p}
+                            jobId={id}
+                            convoId={convoByFreelancer[p.freelancer_id] ?? null}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })()}
 
                 {/* MESSAGED — proposals whose freelancer you have a chat with */}
                 {pSub === "messaged" &&
@@ -781,23 +728,42 @@ export default async function JobDetailsPage({
                   })()}
 
                 {/* ARCHIVED */}
-                {pSub === "archived" && (
-                  <div className="text-center py-16">
-                    <div className="text-5xl mb-4">🗂️</div>
-                    <p className="text-xl font-semibold text-foreground">
-                      Your archived proposals
-                    </p>
-                    <p className="text-muted-foreground text-sm mt-2">
-                      Declined and withdrawn proposals will appear here.
-                    </p>
-                    <Link
-                      href={`/jobs/${id}?tab=proposals&sub=all`}
-                      className="inline-block mt-5 bg-primary text-primary-foreground px-6 py-2.5 rounded-full font-semibold hover:opacity-90"
-                    >
-                      View all proposals
-                    </Link>
-                  </div>
-                )}
+                {pSub === "archived" &&
+                  (() => {
+                    const archived = (proposals ?? []).filter((p) => p.archived);
+                    if (archived.length === 0) {
+                      return (
+                        <div className="text-center py-16">
+                          <div className="text-5xl mb-4">🗂️</div>
+                          <p className="text-xl font-semibold text-foreground">
+                            Your archived proposals
+                          </p>
+                          <p className="text-muted-foreground text-sm mt-2">
+                            Tap 👎 on a proposal to archive it. Archived
+                            proposals move here; you can restore them anytime.
+                          </p>
+                          <Link
+                            href={`/jobs/${id}?tab=proposals&sub=all`}
+                            className="inline-block mt-5 bg-primary text-primary-foreground px-6 py-2.5 rounded-full font-semibold hover:opacity-90"
+                          >
+                            View all proposals
+                          </Link>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="space-y-4">
+                        {archived.map((p) => (
+                          <ProposalReviewCard
+                            key={p.id}
+                            p={p}
+                            jobId={id}
+                            convoId={convoByFreelancer[p.freelancer_id] ?? null}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })()}
               </div>
             );
           })()}

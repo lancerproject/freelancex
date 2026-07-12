@@ -370,3 +370,57 @@ export async function completeContract(contractId: string) {
 
   redirect("/contracts");
 }
+
+// Client shortlists / un-shortlists a proposal (the 👍 on the card). Only the
+// job's own client may act on its proposals.
+export async function shortlistProposal(
+  proposalId: string,
+  jobId: string,
+  on: boolean
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const { data: job } = await supabase
+    .from("jobs")
+    .select("client_id")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (!job || job.client_id !== user.id) redirect(`/jobs/${jobId}`);
+
+  // Shortlisting also un-archives (mutually exclusive).
+  await supabase
+    .from("proposals")
+    .update({ shortlisted: on, ...(on ? { archived: false } : {}) })
+    .eq("id", proposalId)
+    .eq("job_id", jobId);
+  revalidatePath(`/jobs/${jobId}`);
+}
+
+// Client archives / restores a proposal (the 👎 on the card).
+export async function archiveProposal(
+  proposalId: string,
+  jobId: string,
+  on: boolean
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const { data: job } = await supabase
+    .from("jobs")
+    .select("client_id")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (!job || job.client_id !== user.id) redirect(`/jobs/${jobId}`);
+
+  await supabase
+    .from("proposals")
+    .update({ archived: on, ...(on ? { shortlisted: false } : {}) })
+    .eq("id", proposalId)
+    .eq("job_id", jobId);
+  revalidatePath(`/jobs/${jobId}`);
+}
