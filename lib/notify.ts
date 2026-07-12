@@ -33,8 +33,11 @@ export async function notify(
     /* fall back to defaults */
   }
 
-  // In-app notification (respects the in-app channel preference).
-  if (isAllowed(prefs, type, "inapp")) {
+  // In-app notification (respects the in-app channel preference). Chat messages
+  // are intentionally NOT added to the notification bell — they live in the
+  // Messages inbox (with its own unread count), like Upwork. The email below
+  // still goes out if the recipient allows message emails.
+  if (type !== "message" && isAllowed(prefs, type, "inapp")) {
     const { error } = await supabase.from("notifications").insert({
       user_id: userId,
       type,
