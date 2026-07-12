@@ -128,9 +128,10 @@ export function TaxSections({
       <div>
         <h2 className="text-2xl font-bold text-foreground">Tax information</h2>
         <p className="text-muted-foreground text-sm mt-2 max-w-2xl">
-          This information is required to confirm whether you&apos;re a U.S. or
-          non-U.S. taxpayer and whether Xwork must withhold taxes from your
-          earnings. Add your tax information now to avoid delays getting paid.
+          This information is required for tax reporting — it confirms whether
+          you&apos;re a U.S. or non-U.S. taxpayer and appears on your invoices.
+          Add your tax information to keep your account in good standing and
+          avoid payment delays.
         </p>
       </div>
 
