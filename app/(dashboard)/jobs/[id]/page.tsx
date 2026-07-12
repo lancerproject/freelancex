@@ -66,7 +66,7 @@ export default async function JobDetailsPage({
   const { data: proposalsRaw } = await supabase
     .from("proposals")
     .select(
-      `*, profiles ( id, full_name, skills, title, hourly_rate, plan, membership_status, membership_end_date, membership_autorenew, talent_badge, avatar_url, location, jss_score )`
+      `*, profiles ( id, full_name, skills, title, hourly_rate, plan, membership_status, membership_end_date, membership_autorenew, talent_badge, avatar_url, location, country, city, jss_score )`
     )
     .eq("job_id", id)
     .order("created_at", { ascending: false });

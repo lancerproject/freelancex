@@ -26,6 +26,9 @@ export function ProposalReviewCard({
 }) {
   const prof = Array.isArray(p.profiles) ? p.profiles[0] : p.profiles;
   const jss = Number(prof?.jss_score) || 0;
+  const loc =
+    prof?.location ||
+    [prof?.city, prof?.country].filter(Boolean).join(", ");
   const name = prof?.full_name || "Freelancer";
   const skills = String(prof?.skills || "")
     .split(",")
@@ -75,8 +78,8 @@ export function ProposalReviewCard({
           {prof?.title && (
             <p className="text-sm text-muted-foreground truncate">{prof.title}</p>
           )}
-          {prof?.location && (
-            <p className="text-xs text-muted-foreground mt-0.5">{prof.location}</p>
+          {loc && (
+            <p className="text-xs text-muted-foreground mt-0.5">{loc}</p>
           )}
         </div>
 
@@ -146,10 +149,7 @@ export function ProposalReviewCard({
 
       {/* Rate · earned · Job Success */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-sm">
-        <span className="font-medium text-foreground">
-          ${p.bid_amount}
-          {p.delivery_days ? ` · ${p.delivery_days}d` : ""}
-        </span>
+        <span className="font-medium text-foreground">${p.bid_amount}</span>
         <span className="text-muted-foreground">{earnedLabel(earned)}</span>
         {jss > 0 && (
           <span className="text-muted-foreground">
