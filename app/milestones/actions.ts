@@ -311,6 +311,53 @@ export async function approveMilestone(
   redirect(`/contracts/${contractId}`);
 }
 
+// Client asks for changes on submitted work — sends the milestone back to the
+// freelancer to revise. Escrow stays funded (IN_REVIEW → FUNDED); the
+// freelancer can resubmit without re-funding.
+export async function requestChangesMilestone(
+  milestoneId: string,
+  contractId: string
+) {
+  const supabase = await createClient();
+  const { contract, milestone } = await guardMilestone(
+    supabase,
+    milestoneId,
+    contractId,
+    "client"
+  );
+  if (milestone.status !== "submitted") {
+    redirect(`/contracts/${contractId}`);
+  }
+
+  await supabase
+    .from("milestones")
+    .update({ status: "pending", submitted_at: null })
+    .eq("id", milestoneId)
+    .eq("contract_id", contractId);
+
+  try {
+    const admin = createAdminClient();
+    const { error } = await admin.rpc("escrow_reject_milestone", {
+      p_milestone: milestoneId,
+      p_actor: contract.client_id,
+    });
+    if (error) console.error("escrow reject failed:", error.message);
+  } catch (e) {
+    console.error("escrow reject failed:", e);
+  }
+
+  await notify(
+    supabase,
+    contract.freelancer_id,
+    "contract",
+    "Changes requested",
+    `The client asked for changes on a milestone in "${contract.title}". Review their notes in the chat and resubmit when ready.`,
+    `/contracts/${contractId}`
+  );
+
+  redirect(`/contracts/${contractId}`);
+}
+
 export async function deleteMilestone(
   milestoneId: string,
   contractId: string

@@ -6,6 +6,7 @@ import {
   fundMilestone,
   submitMilestone,
   approveMilestone,
+  requestChangesMilestone,
   deleteMilestone,
   proposeMilestone,
 } from "@/app/milestones/actions";
@@ -643,19 +644,42 @@ export default async function ContractDetailsPage({
                           </span>
                         )}
 
-                      {/* Client approves & releases */}
+                      {/* Client reviews the submitted work: approve & pay, or
+                          send it back for changes (escrow stays funded). */}
                       {m.status === "submitted" && isClient && (
-                        <form
-                          action={approveMilestone.bind(null, m.id, contract.id)}
-                        >
-                          <button className="bg-primary hover:bg-primary text-white px-4 py-1.5 rounded-full text-sm">
-                            Approve &amp; release payment
-                          </button>
-                        </form>
+                        <div className="flex flex-col gap-2">
+                          <p className="text-sm font-medium text-foreground">
+                            Review the submitted work
+                          </p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <form
+                              action={approveMilestone.bind(
+                                null,
+                                m.id,
+                                contract.id
+                              )}
+                            >
+                              <button className="bg-primary text-primary-foreground px-4 py-1.5 rounded-full text-sm font-semibold hover:opacity-90">
+                                Approve &amp; pay
+                              </button>
+                            </form>
+                            <form
+                              action={requestChangesMilestone.bind(
+                                null,
+                                m.id,
+                                contract.id
+                              )}
+                            >
+                              <button className="border border-border text-foreground px-4 py-1.5 rounded-full text-sm font-medium hover:bg-secondary">
+                                Request changes
+                              </button>
+                            </form>
+                          </div>
+                        </div>
                       )}
                       {m.status === "submitted" && isFreelancer && (
                         <span className="text-sm text-muted-foreground">
-                          Submitted — awaiting client approval.
+                          Submitted — awaiting the client&apos;s review.
                         </span>
                       )}
 
