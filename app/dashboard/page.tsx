@@ -108,11 +108,24 @@ async function ClientDashboard({
 }) {
   const supabase = await createClient();
 
-  const { data: jobs } = await supabase
-    .from("jobs")
-    .select("id, title, created_at, status, budget, job_type")
-    .eq("client_id", userId)
-    .order("created_at", { ascending: false });
+  // Fire the independent reads together (jobs, this client's contracts, and a
+  // few freelancers to recommend) instead of one-after-another.
+  const [{ data: jobs }, { data: contractRows }, { data: talent }] =
+    await Promise.all([
+      supabase
+        .from("jobs")
+        .select("id, title, created_at, status, budget, job_type")
+        .eq("client_id", userId)
+        .order("created_at", { ascending: false }),
+      supabase.from("contracts").select("id, job_id").eq("client_id", userId),
+      supabase
+        .from("profiles")
+        .select(
+          "id, full_name, username, title, hourly_rate, skills, location, avatar_url, profile_visibility"
+        )
+        .eq("role", "freelancer")
+        .limit(8),
+    ]);
 
   const jobList = jobs ?? [];
   const jobIds = jobList.map((j) => j.id);
@@ -123,10 +136,6 @@ async function ClientDashboard({
   const invitedCounts: Record<string, number> = {};
   const messagedCounts: Record<string, number> = {};
 
-  const { data: contractRows } = await supabase
-    .from("contracts")
-    .select("id, job_id")
-    .eq("client_id", userId);
   const hasContracts = (contractRows ?? []).length > 0;
   for (const c of contractRows ?? []) {
     hiredCounts[c.job_id] = (hiredCounts[c.job_id] ?? 0) + 1;
@@ -162,13 +171,8 @@ async function ClientDashboard({
     return `${days} day${days === 1 ? "" : "s"} ago`;
   };
 
-  // Personalized talent — a few freelancers to invite
-  const { data: talent } = await supabase
-    .from("profiles")
-    .select("id, full_name, username, title, hourly_rate, skills, location, avatar_url, profile_visibility")
-    .eq("role", "freelancer")
-    .limit(8);
-  // Don't recommend profiles set to "private".
+  // Personalized talent — a few freelancers to invite (fetched in the batch
+  // above). Don't recommend profiles set to "private".
   const talentList = (talent ?? [])
     .filter((t) => (t.profile_visibility || "public") !== "private")
     .slice(0, 4);
@@ -529,23 +533,53 @@ async function FreelancerDashboard({
 }) {
   const supabase = await createClient();
 
-  // Open jobs feed (older jobs may have null status → treat as open).
-  // Pull the client's country + a proposal count for the Upwork-style cards.
-  const { data: jobsData } = await supabase
-    .from("jobs")
-    .select(
-      "*, proposals(count), client:profiles!client_id(country, full_name, payment_verified, total_spent)"
-    )
-    .or("status.eq.open,status.is.null")
-    .order("created_at", { ascending: false })
-    .limit(100);
+  // Everything the freelancer home needs, fired together — this was a 7-query
+  // waterfall that ran on the landing page. The derivations below are unchanged.
+  const [
+    { data: jobsData },
+    { data: savedRows },
+    { data: myProps },
+    { data: myContracts },
+    { data: savedSearchRows },
+    { count: submittedCount },
+    hub,
+  ] = await Promise.all([
+    // Open jobs feed (older jobs may have null status → treat as open); pull
+    // the client's country + a proposal count for the Upwork-style cards.
+    supabase
+      .from("jobs")
+      .select(
+        "*, proposals(count), client:profiles!client_id(country, full_name, payment_verified, total_spent)"
+      )
+      .or("status.eq.open,status.is.null")
+      .order("created_at", { ascending: false })
+      .limit(100),
+    supabase.from("saved_jobs").select("job_id").eq("user_id", userId),
+    supabase
+      .from("proposals")
+      .select("id, job_id, status")
+      .eq("freelancer_id", userId)
+      .neq("status", "withdrawn"),
+    supabase
+      .from("contracts")
+      .select("id, job_id")
+      .eq("freelancer_id", userId)
+      .neq("status", "offer"),
+    supabase
+      .from("saved_searches")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("proposals")
+      .select("*", { count: "exact", head: true })
+      .eq("freelancer_id", userId),
+    // Proposal hub — offers, active candidates, invites, counts for the sidebar.
+    getProposalHub(supabase, userId),
+  ]);
   const jobs = jobsData ?? [];
 
   // Which of these the freelancer has saved.
-  const { data: savedRows } = await supabase
-    .from("saved_jobs")
-    .select("job_id")
-    .eq("user_id", userId);
   const savedIds = (savedRows ?? []).map((r) => r.job_id as string);
 
   // Active (non-withdrawn) proposals → "Applied" badge + "View Proposal" link.
@@ -555,17 +589,7 @@ async function FreelancerDashboard({
     string,
     { id: string; status: string; contractId?: string | null }
   > = {};
-  const { data: myProps } = await supabase
-    .from("proposals")
-    .select("id, job_id, status")
-    .eq("freelancer_id", userId)
-    .neq("status", "withdrawn");
   const contractByJob: Record<string, string> = {};
-  const { data: myContracts } = await supabase
-    .from("contracts")
-    .select("id, job_id")
-    .eq("freelancer_id", userId)
-    .neq("status", "offer");
   for (const c of myContracts ?? []) {
     if (c.job_id) contractByJob[c.job_id as string] = c.id as string;
   }
@@ -578,20 +602,7 @@ async function FreelancerDashboard({
   }
 
   // Saved searches power the "My Feed" tab.
-  const { data: savedSearchRows } = await supabase
-    .from("saved_searches")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
   const savedSearches = savedSearchRows ?? [];
-
-  // Proposal hub — offers, active candidates, invites and proposal counts for
-  // the sidebar summary (same source of truth as the My Proposals page).
-  const { count: submittedCount } = await supabase
-    .from("proposals")
-    .select("*", { count: "exact", head: true })
-    .eq("freelancer_id", userId);
-  const hub = await getProposalHub(supabase, userId);
 
   // Profile completeness — one shared calculation (matches the popup exactly).
   const { items: checklist, percent: completeness } = profileChecklist(profile);

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { after } from "next/server";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -48,35 +49,37 @@ export default async function RootLayout({
   let recentNotifications: any[] = [];
 
   if (user) {
-    const { count } = await supabase
-      .from("notifications")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("is_read", false);
+    const userId = user.id;
 
-    unreadCount = count || 0;
+    // This block runs on EVERY page. Firing the independent reads together
+    // (instead of one-after-another) is the single biggest site-wide speedup —
+    // total time is now the slowest query, not the sum of all of them.
+    const [
+      { count: notifCount },
+      { data: convos },
+      { data: profile },
+      { data: notifs },
+    ] = await Promise.all([
+      supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("is_read", false),
+      supabase
+        .from("conversations")
+        .select("id")
+        .or(`participant_1.eq.${userId},participant_2.eq.${userId}`),
+      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+      supabase
+        .from("notifications")
+        .select("id, title, message, link, is_read, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(6),
+    ]);
 
-    // Unread messages = messages in my conversations, not sent by me, not read.
-    const { data: convos } = await supabase
-      .from("conversations")
-      .select("id")
-      .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`);
-    const convoIds = (convos ?? []).map((c) => c.id);
-    if (convoIds.length > 0) {
-      const { count: mc } = await supabase
-        .from("messages")
-        .select("id", { count: "exact", head: true })
-        .in("conversation_id", convoIds)
-        .neq("sender_id", user.id)
-        .eq("read", false);
-      unreadMessages = mc || 0;
-    }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .maybeSingle();
+    unreadCount = notifCount || 0;
+    recentNotifications = notifs ?? [];
     role = profile?.role ?? undefined;
     navName =
       profile?.full_name || profile?.username || user.email?.split("@")[0];
@@ -84,41 +87,47 @@ export default async function RootLayout({
     onlineForMessages = profile?.online_for_messages ?? true;
     isAdminUser = !!profile?.is_admin;
 
-    // Identity banner: only once the freelancer's profile is complete AND
-    // they've applied to a job / waited 1+ day / started a contract.
-    showIdentityBanner = await computeIdentityRequired(
-      supabase,
-      user.id,
-      profile
-    );
+    // Second wave — these two depend on the batch above (conversation ids /
+    // the profile row), so run them together once it resolves.
+    const convoIds = (convos ?? []).map((c) => c.id);
+    const [msgCount, identityRequired] = await Promise.all([
+      convoIds.length > 0
+        ? supabase
+            .from("messages")
+            .select("id", { count: "exact", head: true })
+            .in("conversation_id", convoIds)
+            .neq("sender_id", userId)
+            .eq("read", false)
+            .then((r) => r.count || 0)
+        : Promise.resolve(0),
+      // Identity banner: only once the freelancer's profile is complete AND
+      // they've applied to a job / waited 1+ day / started a contract.
+      computeIdentityRequired(supabase, userId, profile),
+    ]);
+    unreadMessages = msgCount;
+    showIdentityBanner = identityRequired;
 
-    // The first time verification becomes required, drop a notification so the
-    // user sees it in the bell — but only once (deduped by the link).
+    // The first time verification becomes required, drop a bell notification —
+    // deferred with after() so it never delays the page render.
     if (showIdentityBanner) {
-      const { count: existing } = await supabase
-        .from("notifications")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("link", "/settings/identity");
-      if ((existing ?? 0) === 0) {
-        await notify(
-          supabase,
-          user.id,
-          "system",
-          "Verify your identity",
-          "Your profile is ready! Verify your identity to start applying and getting paid on Xwork.",
-          "/settings/identity"
-        );
-      }
+      after(async () => {
+        const { count: existing } = await supabase
+          .from("notifications")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("link", "/settings/identity");
+        if ((existing ?? 0) === 0) {
+          await notify(
+            supabase,
+            userId,
+            "system",
+            "Verify your identity",
+            "Your profile is ready! Verify your identity to start applying and getting paid on Xwork.",
+            "/settings/identity"
+          );
+        }
+      });
     }
-
-    const { data: notifs } = await supabase
-      .from("notifications")
-      .select("id, title, message, link, is_read, created_at")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(6);
-    recentNotifications = notifs ?? [];
   }
 
   return (
