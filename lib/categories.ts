@@ -35,6 +35,14 @@ export const DURATIONS = [
   { value: "more_than_6_months", label: "More than 6 months" },
 ] as const;
 
+// Human label for a stored proposal duration value ("1_to_3_months" →
+// "1 to 3 months"). Returns null when there's no stored value / no match, so
+// callers can fall back to a delivery-days estimate.
+export function durationLabel(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return DURATIONS.find((d) => d.value === value)?.label ?? null;
+}
+
 export function labelFor(
   list: ReadonlyArray<{ value: string; label: string }>,
   value: string | null | undefined

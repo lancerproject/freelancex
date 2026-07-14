@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { notify } from "@/lib/notify";
+import { postContractEvent } from "@/lib/chat-events";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
@@ -96,6 +97,12 @@ export async function requestRefund(contractId: string, formData: FormData) {
     `A refund of ${money} was requested on "${contract.title}". Review and respond.`,
     back
   );
+  await postContractEvent(
+    supabase,
+    contract,
+    user.id,
+    `💵 ${contract.client_id === user.id ? "The client" : "The freelancer"} requested a refund of ${money}.${reason ? ` Reason: ${reason}` : ""}`
+  );
   revalidatePath(back);
   redirect(back);
 }
@@ -169,6 +176,14 @@ export async function respondRefund(
       ? `The ${money} refund on "${contract.title}" was accepted. The amount has been returned.`
       : `The ${money} refund request on "${contract.title}" was declined.`,
     `/contracts/${req.contract_id}/refund`
+  );
+  await postContractEvent(
+    supabase,
+    contract,
+    user.id,
+    accept
+      ? `💸 The ${money} refund was accepted — the amount has been returned to the client.`
+      : `🚫 The ${money} refund request was declined.`
   );
   revalidatePath(`/contracts/${req.contract_id}/refund`);
   redirect(`/contracts/${req.contract_id}/refund`);

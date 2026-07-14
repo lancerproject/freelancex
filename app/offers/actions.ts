@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { identityBlocked } from "@/lib/identity";
 import { notify } from "@/lib/notify";
+import { postContractEvent } from "@/lib/chat-events";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
@@ -442,7 +443,7 @@ export async function cancelOffer(contractId: string) {
 
   const { data: contract } = await supabase
     .from("contracts")
-    .select("id, client_id, freelancer_id, title, status")
+    .select("id, client_id, freelancer_id, title, status, job_id")
     .eq("id", contractId)
     .maybeSingle();
   if (contract && contract.client_id === user.id && contract.status === "offer") {
@@ -471,6 +472,12 @@ export async function cancelOffer(contractId: string) {
       "An offer was withdrawn by the client",
       `The offer "${contract.title}" is no longer available.`,
       "/freelancer?tab=offers"
+    );
+    await postContractEvent(
+      supabase,
+      contract,
+      user.id,
+      `↩️ The client withdrew the offer for "${contract.title}".`
     );
   }
   redirect("/offers");

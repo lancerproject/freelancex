@@ -3,6 +3,7 @@
 import { createClient } from "../../lib/supabase-server";
 import { createAdminClient } from "../../lib/supabase-admin";
 import { notify } from "../../lib/notify";
+import { postContractEvent } from "../../lib/chat-events";
 import { redirect } from "next/navigation";
 
 // Load a contract and confirm the signed-in user is the party allowed to run
@@ -61,7 +62,7 @@ export async function addMilestone(
 
   const { data: contract } = await supabase
     .from("contracts")
-    .select("job_id, proposal_id, client_id, status")
+    .select("job_id, proposal_id, client_id, freelancer_id, status")
     .eq("id", contractId)
     .single();
 
@@ -83,6 +84,13 @@ export async function addMilestone(
     due_date,
     status: "pending",
   });
+
+  await postContractEvent(
+    supabase,
+    contract,
+    user.id,
+    `🧩 Client added a milestone: "${title}" ($${amount}).`
+  );
 
   redirect(`/contracts/${contractId}`);
 }
@@ -137,6 +145,13 @@ export async function proposeMilestone(
     `/contracts/${contractId}`
   );
 
+  await postContractEvent(
+    supabase,
+    contract,
+    user.id,
+    `🧩 Freelancer proposed a milestone: "${title}" ($${amount}). Fund it to activate the work.`
+  );
+
   redirect(`/contracts/${contractId}`);
 }
 
@@ -180,6 +195,13 @@ export async function fundMilestone(
     "Milestone funded",
     `A milestone on "${contract.title}" was funded. You can start working.`,
     `/contracts/${contractId}`
+  );
+
+  await postContractEvent(
+    supabase,
+    contract,
+    user.id,
+    `💰 Client funded a milestone — payment is now held safely in escrow. You can start working.`
   );
 
   redirect(`/contracts/${contractId}`);
@@ -229,6 +251,13 @@ export async function submitMilestone(
     "Work submitted for payment",
     `A milestone on "${contract.title}" was submitted for your approval. It auto-approves in 5 days if not reviewed.`,
     `/contracts/${contractId}`
+  );
+
+  await postContractEvent(
+    supabase,
+    contract,
+    contract.freelancer_id,
+    `📤 Freelancer submitted work for review. It auto-approves in 5 days if not reviewed.`
   );
 
   redirect(`/contracts/${contractId}`);
@@ -306,6 +335,12 @@ export async function approveMilestone(
       `A milestone on "${contract.title}" was approved and paid.`,
       `/contracts/${contractId}`
     );
+    await postContractEvent(
+      supabase,
+      contract,
+      contract.client_id,
+      `✅ Client approved the work and released the milestone payment.`
+    );
   }
 
   redirect(`/contracts/${contractId}`);
@@ -355,6 +390,13 @@ export async function requestChangesMilestone(
     `/contracts/${contractId}`
   );
 
+  await postContractEvent(
+    supabase,
+    contract,
+    contract.client_id,
+    `🔁 Client requested changes on the submitted work. The milestone is back in progress — resubmit when ready.`
+  );
+
   redirect(`/contracts/${contractId}`);
 }
 
@@ -391,6 +433,13 @@ export async function deleteMilestone(
     "A milestone was removed",
     `A milestone on "${contract.title}" was removed by the client.`,
     `/contracts/${contractId}`
+  );
+
+  await postContractEvent(
+    supabase,
+    contract,
+    contract.client_id,
+    `🗑️ Client removed an unfunded milestone.`
   );
 
   redirect(`/contracts/${contractId}`);

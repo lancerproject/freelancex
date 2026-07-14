@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { refundEscrowAndComplete } from "@/lib/contract-closure";
 import { openSupportTicket, parseAttachments } from "@/lib/support";
 import { recalcHealth } from "@/lib/health";
+import { postContractEvent } from "@/lib/chat-events";
 
 // Save the ending party's end-of-contract feedback (public + private) in one
 // row. Best-effort: a feedback hiccup must never block the contract from
@@ -89,7 +90,7 @@ export async function raiseDispute(contractId: string, formData: FormData) {
 
   const { data: contract } = await supabase
     .from("contracts")
-    .select("client_id, freelancer_id, title")
+    .select("client_id, freelancer_id, title, job_id")
     .eq("id", contractId)
     .single();
   if (
@@ -108,6 +109,13 @@ export async function raiseDispute(contractId: string, formData: FormData) {
       disputed_at: new Date().toISOString(),
     })
     .eq("id", contractId);
+
+  await postContractEvent(
+    supabase,
+    contract,
+    user.id,
+    `⚠️ A dispute was opened.${reason ? ` Reason: ${reason}` : ""} Our team will help resolve it.`
+  );
 
   // Track the dispute in the request center.
   await openSupportTicket(supabase, {
@@ -146,7 +154,7 @@ export async function resolveDispute(contractId: string) {
 
   const { data: contract } = await supabase
     .from("contracts")
-    .select("client_id, freelancer_id, title")
+    .select("client_id, freelancer_id, title, job_id")
     .eq("id", contractId)
     .single();
   if (
@@ -165,6 +173,13 @@ export async function resolveDispute(contractId: string) {
       disputed_at: null,
     })
     .eq("id", contractId);
+
+  await postContractEvent(
+    supabase,
+    contract,
+    user.id,
+    `✅ The dispute was marked resolved. Work can continue.`
+  );
 
   const other =
     contract.client_id === user.id
@@ -200,7 +215,7 @@ export async function endContract(contractId: string, formData: FormData) {
 
   const { data: contract } = await supabase
     .from("contracts")
-    .select("id, client_id, freelancer_id, title, status")
+    .select("id, client_id, freelancer_id, title, status, job_id")
     .eq("id", contractId)
     .single();
   if (
@@ -223,6 +238,23 @@ export async function endContract(contractId: string, formData: FormData) {
     formData,
     reason,
   });
+
+  // Surface the ending (+ that feedback was left) in the chat room for both.
+  const whoEnded = isClient ? "The client" : "The freelancer";
+  await postContractEvent(
+    supabase,
+    contract,
+    user.id,
+    `🔚 ${whoEnded} ended the contract.${reason ? ` Reason: ${reason}` : ""}`
+  );
+  if (Number(formData.get("rating")) >= 1) {
+    await postContractEvent(
+      supabase,
+      contract,
+      user.id,
+      `⭐ ${whoEnded} left feedback — it appears once you both submit your reviews.`
+    );
+  }
 
   // How much escrow is held right now (funded but not released)?
   const { count: escrowCount } = await supabase
@@ -297,7 +329,9 @@ export async function closureRefund(contractId: string) {
 
   const { data: contract } = await supabase
     .from("contracts")
-    .select("id, client_id, freelancer_id, title, status, pending_closure_by")
+    .select(
+      "id, client_id, freelancer_id, title, status, pending_closure_by, job_id"
+    )
     .eq("id", contractId)
     .single();
   // Only the freelancer, only while a closure window is open.
@@ -313,6 +347,13 @@ export async function closureRefund(contractId: string) {
   await refundEscrowAndComplete(supabase, contract, {
     byLabel: "the freelancer (refund accepted)",
   });
+
+  await postContractEvent(
+    supabase,
+    contract,
+    user.id,
+    `💸 The freelancer released the escrow back to the client — the contract is now closed.`
+  );
 
   revalidatePath(`/contracts/${contractId}`);
   redirect(`/contracts/${contractId}`);
@@ -332,7 +373,9 @@ export async function closureDispute(contractId: string, formData: FormData) {
 
   const { data: contract } = await supabase
     .from("contracts")
-    .select("id, client_id, freelancer_id, title, status, pending_closure_by")
+    .select(
+      "id, client_id, freelancer_id, title, status, pending_closure_by, job_id"
+    )
     .eq("id", contractId)
     .single();
   if (
@@ -343,6 +386,13 @@ export async function closureDispute(contractId: string, formData: FormData) {
   ) {
     redirect(`/contracts/${contractId}`);
   }
+
+  await postContractEvent(
+    supabase,
+    contract,
+    user.id,
+    `⚠️ The freelancer opened a dispute after the client ended the contract. Escrow stays frozen until it's resolved.`
+  );
 
   await supabase
     .from("contracts")

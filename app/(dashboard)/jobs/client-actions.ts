@@ -89,6 +89,110 @@ export async function getClientInfo(clientId: string) {
   };
 }
 
+// Everything the client's "Review proposals" slide-in panel needs for one
+// applicant: the freelancer's profile + their proposal. Guarded so only the
+// job's owner can read it. Returns a plain, serializable object.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function _toList(v: any): any[] {
+  if (Array.isArray(v)) return v;
+  if (typeof v === "string" && v.trim().startsWith("[")) {
+    try {
+      const p = JSON.parse(v);
+      if (Array.isArray(p)) return p;
+    } catch {
+      /* not JSON */
+    }
+  }
+  return [];
+}
+
+export async function getProposalPanelData(jobId: string, proposalId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: job } = await supabase
+    .from("jobs")
+    .select("id, client_id")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (!job || job.client_id !== user.id) return null;
+
+  const { data: p } = await supabase
+    .from("proposals")
+    .select("*, profiles ( * )")
+    .eq("id", proposalId)
+    .eq("job_id", jobId)
+    .maybeSingle();
+  if (!p) return null;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const prof: any = Array.isArray(p.profiles) ? p.profiles[0] : p.profiles;
+
+  const { data: convo } = await supabase
+    .from("conversations")
+    .select("id")
+    .eq("job_id", jobId)
+    .or(
+      `participant_1.eq.${p.freelancer_id},participant_2.eq.${p.freelancer_id}`
+    )
+    .limit(1);
+
+  let earned = 0;
+  try {
+    const admin = createAdminClient();
+    const { data: pays } = await admin
+      .from("job_payments")
+      .select("gross_amount")
+      .eq("freelancer_id", p.freelancer_id);
+    earned = (pays ?? []).reduce(
+      (t, r) => t + (Number(r.gross_amount) || 0),
+      0
+    );
+  } catch {
+    /* best-effort */
+  }
+
+  return {
+    proposalId: p.id as string,
+    jobId,
+    freelancerId: p.freelancer_id as string,
+    name: (prof?.full_name as string) || "Freelancer",
+    title: (prof?.title as string) || null,
+    avatarUrl: (prof?.avatar_url as string) || null,
+    location:
+      (prof?.location as string) ||
+      [prof?.city, prof?.country].filter(Boolean).join(", "),
+    timezone: (prof?.timezone as string) || null,
+    isPro: getMembership(prof).isPro,
+    talentBadge: (prof?.talent_badge as string) || null,
+    earned,
+    jss: Number(prof?.jss_score) || 0,
+    bid: p.bid_amount ?? null,
+    duration: (p.duration as string) || null,
+    deliveryDays: p.delivery_days ?? null,
+    status: (p.status as string) || "pending",
+    shortlisted: !!p.shortlisted,
+    archived: !!p.archived,
+    coverLetter: (p.cover_letter as string) || "",
+    employment: _toList(prof?.employment),
+    education: _toList(prof?.education),
+    portfolio: _toList(prof?.portfolio),
+    languages: _toList(prof?.languages),
+    skills: String(prof?.skills || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+    convoId: convo?.[0]?.id ?? null,
+  };
+}
+
+export type ProposalPanelData = NonNullable<
+  Awaited<ReturnType<typeof getProposalPanelData>>
+>;
+
 // ONE round-trip for everything the feed slide-over needs (client summary +
 // bid range + other open jobs + activity counts). Server-action calls are
 // serialized per page and each pays the middleware cost, so firing several

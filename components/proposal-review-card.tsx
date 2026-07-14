@@ -8,6 +8,7 @@ import { messageFreelancer } from "@/app/(dashboard)/jobs/actions";
 import { ProBadge } from "@/components/pro-badge";
 import { talentBadgeMeta } from "@/lib/talent-badges";
 import { earnedLabel } from "@/lib/earned-label";
+import { ProposalOpener } from "@/components/proposal-opener";
 
 // One proposal on the client's "Review proposals" page — mirrors Upwork's
 // applicant card: avatar, name/title/location, rate, cover letter, skills, and
@@ -66,12 +67,13 @@ export function ProposalReviewCard({
         {/* Name / title / location */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <Link
-              href={`/jobs/${jobId}/proposals/${p.id}`}
-              className="font-semibold text-foreground hover:text-primary"
+            <ProposalOpener
+              jobId={jobId}
+              proposalId={p.id}
+              className="font-semibold text-foreground hover:text-primary cursor-pointer"
             >
               {name}
-            </Link>
+            </ProposalOpener>
             {p.is_pro && <ProBadge size="sm" />}
             {tb && (
               <span
