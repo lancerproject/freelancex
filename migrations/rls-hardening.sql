@@ -65,10 +65,24 @@ create policy reviews_update on public.reviews for update
 
 -- ---- Private feedback must never leak. reviews are public-read (rating +
 --      comment show on profiles), but private_rating/private_comment are
---      staff-only. RLS is row-level, so hide these COLUMNS from the public
---      API roles; the service role (staff/admin reads) still sees them.
-revoke select (private_rating, private_comment) on public.reviews from anon;
-revoke select (private_rating, private_comment) on public.reviews from authenticated;
+--      staff-only. RLS is row-level, so hide these COLUMNS from the public API
+--      roles. A column-level REVOKE alone is a no-op when the role holds a
+--      table-level SELECT grant (Supabase grants one by default), so we revoke
+--      the table grant and re-grant SELECT on every column EXCEPT the two
+--      private ones. The service role (staff/admin) still sees everything.
+revoke select on public.reviews from anon;
+revoke select on public.reviews from authenticated;
+do $$
+declare cols text;
+begin
+  select string_agg(quote_ident(column_name), ', ')
+    into cols
+  from information_schema.columns
+  where table_schema = 'public' and table_name = 'reviews'
+    and column_name not in ('private_rating', 'private_comment');
+  execute format('grant select (%s) on public.reviews to anon;', cols);
+  execute format('grant select (%s) on public.reviews to authenticated;', cols);
+end $$;
 
 -- ---- #2  Lock the escrow money tables -------------------------------------
 do $$
