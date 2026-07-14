@@ -8,12 +8,8 @@ import { earnedLabel } from "@/lib/earned-label";
 import { durationLabel } from "@/lib/categories";
 import { LocalTime } from "@/components/local-time";
 import { PortfolioSection } from "@/components/portfolio-section";
-import {
-  hireFreelancer,
-  shortlistProposal,
-  archiveProposal,
-} from "@/app/proposals/actions";
-import { messageFreelancer } from "@/app/(dashboard)/jobs/actions";
+import { shortlistProposal, archiveProposal } from "@/app/proposals/actions";
+import { QuickMessageButton } from "@/components/quick-message-button";
 import type { ProposalPanelData } from "@/app/(dashboard)/jobs/client-actions";
 
 const TABS = [
@@ -125,33 +121,23 @@ export function ProposalPanel({
 
         {/* Message / Hire */}
         <div className="flex items-center justify-center gap-3 mt-6">
-          {!isAccepted &&
-            (data.convoId ? (
-              <Link
-                href={`/messages/${data.convoId}`}
-                className="border border-primary text-primary px-8 py-2.5 rounded-full font-semibold hover:bg-primary/10"
-              >
-                Message
-              </Link>
-            ) : (
-              <form
-                action={messageFreelancer.bind(
-                  null,
-                  data.jobId,
-                  data.freelancerId
-                )}
-              >
-                <button className="border border-primary text-primary px-8 py-2.5 rounded-full font-semibold hover:bg-primary/10">
-                  Message
-                </button>
-              </form>
-            ))}
+          {!isAccepted && (
+            <QuickMessageButton
+              jobId={data.jobId}
+              freelancerId={data.freelancerId}
+              freelancerName={data.name}
+              className="border border-primary text-primary px-8 py-2.5 rounded-full font-semibold hover:bg-primary/10 cursor-pointer"
+            />
+          )}
           {isPending ? (
-            <form action={hireFreelancer.bind(null, data.proposalId)}>
-              <button className="bg-primary text-primary-foreground px-10 py-2.5 rounded-full font-semibold hover:opacity-90">
-                Hire
-              </button>
-            </form>
+            <Link
+              href={`/offer/new?job=${data.jobId}&proposal=${data.proposalId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-primary text-primary-foreground px-10 py-2.5 rounded-full font-semibold hover:opacity-90"
+            >
+              Hire
+            </Link>
           ) : isAccepted ? (
             <span className="text-primary font-semibold">Hired ✓</span>
           ) : null}

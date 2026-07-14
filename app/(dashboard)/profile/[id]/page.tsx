@@ -146,10 +146,13 @@ export default async function PublicProfilePage({
 
   const { data: reviews } = await supabase
     .from("reviews")
-    .select(`*, reviewer:profiles!reviewer_id (full_name, email, avatar_url)`)
+    .select(
+      `id, contract_id, reviewer_id, reviewee_id, rating, comment, end_reason, created_at, reviewer:profiles!reviewer_id (full_name, email, avatar_url)`
+    )
     .eq("reviewee_id", id)
     .order("created_at", { ascending: false });
-  const reviewList = reviews ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const reviewList = (reviews ?? []) as any[];
 
   // Work history — active (in progress) + completed contracts for this freelancer.
   const { data: workContracts } = await supabase

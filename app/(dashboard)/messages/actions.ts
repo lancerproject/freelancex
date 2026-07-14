@@ -190,6 +190,59 @@ export async function sendChatMessage(
   return { ok: true, message: data };
 }
 
+// Send a message to a freelancer from the client's "Review proposals" page
+// WITHOUT leaving the page (powers the quick-message popup). Resolves — or
+// creates — the per-job conversation, then reuses sendChatMessage so all the
+// moderation / rate-limit / block / notify logic stays in one place.
+export async function quickMessageOnJob(
+  jobId: string,
+  freelancerId: string,
+  content: string
+): Promise<SendResult & { convoId?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "You're not signed in." };
+
+  // Only the job's owner (the client) may start a chat from its proposals.
+  const { data: job } = await supabase
+    .from("jobs")
+    .select("id, client_id")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (!job || job.client_id !== user.id)
+    return { ok: false, error: "You can't message on this job." };
+
+  const { data: existing } = await supabase
+    .from("conversations")
+    .select("id")
+    .eq("job_id", jobId)
+    .or(
+      `and(participant_1.eq.${user.id},participant_2.eq.${freelancerId}),and(participant_1.eq.${freelancerId},participant_2.eq.${user.id})`
+    )
+    .limit(1)
+    .maybeSingle();
+
+  let convoId = existing?.id as string | undefined;
+  if (!convoId) {
+    const { data: created } = await supabase
+      .from("conversations")
+      .insert({
+        job_id: jobId,
+        participant_1: user.id,
+        participant_2: freelancerId,
+      })
+      .select("id")
+      .single();
+    convoId = created?.id;
+  }
+  if (!convoId) return { ok: false, error: "Couldn't open the conversation." };
+
+  const res = await sendChatMessage(convoId, content);
+  return { ...res, convoId };
+}
+
 // Sends a file attachment as a message. The file is already uploaded to storage
 // by the client; here we just record the message row (with moderation skipped —
 // there's no text to scan — but suspension and rate limits still apply).

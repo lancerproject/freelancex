@@ -131,15 +131,19 @@ export default async function ContractDetailsPage({
   const feePct = feePercent(fplan);
 
   // ---- Reviews (double-blind) ----
+  // Public columns only — private_rating/private_comment are revoked from the
+  // client API roles (staff-only), so never select "*" here.
+  const REVIEW_COLS =
+    "id, contract_id, reviewer_id, reviewee_id, rating, comment, end_reason, created_at";
   const { data: myReview } = await supabase
     .from("reviews")
-    .select("*")
+    .select(REVIEW_COLS)
     .eq("contract_id", id)
     .eq("reviewer_id", user.id)
     .maybeSingle();
   const { data: otherReview } = await supabase
     .from("reviews")
-    .select("*")
+    .select(REVIEW_COLS)
     .eq("contract_id", id)
     .eq("reviewer_id", otherId)
     .maybeSingle();

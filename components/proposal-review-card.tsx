@@ -1,14 +1,10 @@
 import Link from "next/link";
-import {
-  hireFreelancer,
-  shortlistProposal,
-  archiveProposal,
-} from "@/app/proposals/actions";
-import { messageFreelancer } from "@/app/(dashboard)/jobs/actions";
+import { shortlistProposal, archiveProposal } from "@/app/proposals/actions";
 import { ProBadge } from "@/components/pro-badge";
 import { talentBadgeMeta } from "@/lib/talent-badges";
 import { earnedLabel } from "@/lib/earned-label";
 import { ProposalOpener } from "@/components/proposal-opener";
+import { QuickMessageButton } from "@/components/quick-message-button";
 
 // One proposal on the client's "Review proposals" page — mirrors Upwork's
 // applicant card: avatar, name/title/location, rate, cover letter, skills, and
@@ -16,13 +12,12 @@ import { ProposalOpener } from "@/components/proposal-opener";
 export function ProposalReviewCard({
   p,
   jobId,
-  convoId,
   earned = 0,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   p: any;
   jobId: string;
-  convoId: string | null;
+  convoId?: string | null;
   earned?: number;
 }) {
   const prof = Array.isArray(p.profiles) ? p.profiles[0] : p.profiles;
@@ -129,27 +124,23 @@ export function ProposalReviewCard({
               </form>
             </>
           )}
-          {!isAccepted &&
-            (convoId ? (
-              <Link
-                href={`/messages/${convoId}`}
-                className="border border-border text-foreground px-4 py-1.5 rounded-full text-sm font-medium hover:bg-secondary"
-              >
-                Message
-              </Link>
-            ) : (
-              <form action={messageFreelancer.bind(null, jobId, p.freelancer_id)}>
-                <button className="border border-border text-foreground px-4 py-1.5 rounded-full text-sm font-medium hover:bg-secondary">
-                  Message
-                </button>
-              </form>
-            ))}
+          {!isAccepted && (
+            <QuickMessageButton
+              jobId={jobId}
+              freelancerId={p.freelancer_id}
+              freelancerName={name}
+              className="border border-border text-foreground px-4 py-1.5 rounded-full text-sm font-medium hover:bg-secondary cursor-pointer"
+            />
+          )}
           {isPending ? (
-            <form action={hireFreelancer.bind(null, p.id)}>
-              <button className="bg-primary text-primary-foreground px-5 py-1.5 rounded-full text-sm font-semibold hover:opacity-90">
-                Hire
-              </button>
-            </form>
+            <Link
+              href={`/offer/new?job=${jobId}&proposal=${p.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-primary text-primary-foreground px-5 py-1.5 rounded-full text-sm font-semibold hover:opacity-90"
+            >
+              Hire
+            </Link>
           ) : isAccepted ? (
             <span className="text-primary text-sm font-semibold px-2">Hired</span>
           ) : null}
@@ -193,6 +184,8 @@ export function ProposalReviewCard({
         <div className="mt-3">
           <Link
             href={`/offer/new?job=${jobId}&proposal=${p.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-primary hover:underline text-sm font-medium"
           >
             Send offer
