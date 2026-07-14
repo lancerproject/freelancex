@@ -6,6 +6,70 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { refundEscrowAndComplete } from "@/lib/contract-closure";
 import { openSupportTicket, parseAttachments } from "@/lib/support";
+import { recalcHealth } from "@/lib/health";
+
+// Save the ending party's end-of-contract feedback (public + private) in one
+// row. Best-effort: a feedback hiccup must never block the contract from
+// closing. `rating` (public stars) is what makes a review worth saving.
+async function saveEndFeedback(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  {
+    contractId,
+    reviewerId,
+    revieweeId,
+    formData,
+    reason,
+  }: {
+    contractId: string;
+    reviewerId: string;
+    revieweeId: string;
+    formData: FormData;
+    reason: string;
+  }
+) {
+  const rating = Number(formData.get("rating"));
+  if (!rating || rating < 1 || rating > 5) return; // no public rating → nothing to save
+
+  const comment = ((formData.get("comment") as string) || "").trim() || null;
+  const privateRatingRaw = Number(formData.get("private_rating"));
+  const privateRating =
+    privateRatingRaw >= 1 && privateRatingRaw <= 5 ? privateRatingRaw : null;
+  const privateComment =
+    ((formData.get("private_comment") as string) || "").trim() || null;
+
+  const { error } = await supabase.from("reviews").upsert(
+    {
+      contract_id: contractId,
+      reviewer_id: reviewerId,
+      reviewee_id: revieweeId,
+      rating,
+      comment,
+      private_rating: privateRating,
+      private_comment: privateComment,
+      end_reason: reason || null,
+    },
+    { onConflict: "contract_id,reviewer_id" }
+  );
+  if (error) {
+    console.error("END FEEDBACK ERROR:", error);
+    return;
+  }
+
+  await notify(
+    supabase,
+    revieweeId,
+    "review",
+    "You received feedback",
+    `You received a ${rating}-star review on a contract that just ended.`,
+    `/contracts/${contractId}?tab=details`
+  ).catch(() => null);
+  try {
+    await recalcHealth(revieweeId, `review:${rating}star`);
+  } catch {
+    /* best-effort */
+  }
+}
 
 // Days a freelancer has to act after a client ends a contract that still
 // holds escrow.
@@ -148,6 +212,17 @@ export async function endContract(contractId: string, formData: FormData) {
   }
 
   const isClient = user.id === contract.client_id;
+  const otherId = isClient ? contract.freelancer_id : contract.client_id;
+
+  // Record the ending party's public + private feedback (Upwork does this in
+  // the same step as ending). Saved up-front so it survives every branch below.
+  await saveEndFeedback(supabase, {
+    contractId,
+    reviewerId: user.id,
+    revieweeId: otherId,
+    formData,
+    reason,
+  });
 
   // How much escrow is held right now (funded but not released)?
   const { count: escrowCount } = await supabase

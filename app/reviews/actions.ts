@@ -27,6 +27,13 @@ export async function submitReview(
     redirect(`/contracts/${contractId}`);
   }
 
+  // Private feedback (never shown publicly — feeds quality signals only).
+  const privateRatingRaw = Number(formData.get("private_rating"));
+  const privateRating =
+    privateRatingRaw >= 1 && privateRatingRaw <= 5 ? privateRatingRaw : null;
+  const privateComment =
+    ((formData.get("private_comment") as string) || "").trim() || null;
+
   const { error } = await supabase.from("reviews").upsert(
     {
       contract_id: contractId,
@@ -34,6 +41,8 @@ export async function submitReview(
       reviewee_id: revieweeId,
       rating,
       comment,
+      private_rating: privateRating,
+      private_comment: privateComment,
     },
     { onConflict: "contract_id,reviewer_id" }
   );

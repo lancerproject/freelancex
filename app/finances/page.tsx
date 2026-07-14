@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 import { getMembership } from "@/lib/membership";
 import { getFreelancerEarnings } from "@/lib/earnings";
-import { feePercent, netFromGross } from "@/lib/fees";
+import { feePercent, netFromGross, feeRate } from "@/lib/fees";
 import { ProLockedCard } from "@/components/pro-locked-card";
 
 // A summary card with an optional "?" tooltip explaining the bucket.
@@ -54,7 +54,9 @@ export default async function FinancesPage() {
   // Milestones across this freelancer's contracts (inner join filters by them).
   const { data: ms } = await supabase
     .from("milestones")
-    .select("*, contracts!inner ( id, freelancer_id, title, job_id )")
+    .select(
+      "*, contracts!inner ( id, freelancer_id, client_id, title, job_id )"
+    )
     .eq("contracts.freelancer_id", user.id);
   const milestones = ms ?? [];
 
@@ -77,18 +79,6 @@ export default async function FinancesPage() {
   // Released earnings + available balance come from the ledger (authoritative).
   const earnings = await getFreelancerEarnings(supabase, user.id, membership.plan);
 
-  const jobIds = Array.from(
-    new Set(earnings.breakdown.map((b) => b.jobId).filter(Boolean))
-  ) as string[];
-  const titleById = new Map<string, string>();
-  if (jobIds.length) {
-    const { data: jobs } = await supabase
-      .from("jobs")
-      .select("id, title")
-      .in("id", jobIds);
-    for (const j of jobs ?? []) titleById.set(j.id as string, j.title as string);
-  }
-
   const money = (n: number) =>
     n.toLocaleString(undefined, { style: "currency", currency: "USD" });
 
@@ -100,6 +90,116 @@ export default async function FinancesPage() {
           year: "numeric",
         })
       : "";
+
+  // ---- Lifecycle transaction ledger --------------------------------------
+  // Every funded milestone appears here and moves through its escrow states:
+  //   In progress → In review → Pending (fee is cut here, so a second "Fee"
+  //   line appears) → Paid. Each row shows the client + job title (clickable
+  //   into the contract room) and the full project amount; the fee is a
+  //   separate signed line so the deduction is explicit.
+  const clientIds = Array.from(
+    new Set(
+      milestones
+        .map((m: { contracts?: { client_id?: string } }) => m.contracts?.client_id)
+        .filter(Boolean)
+    )
+  ) as string[];
+  const clientNameById = new Map<string, string>();
+  if (clientIds.length) {
+    const { data: cps } = await supabase
+      .from("profiles")
+      .select("id, full_name, username")
+      .in("id", clientIds);
+    for (const c of cps ?? [])
+      clientNameById.set(
+        c.id as string,
+        (c.full_name as string) || (c.username as string) || "Client"
+      );
+  }
+
+  const rate = feeRate(membership.plan);
+  const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+  type LedgerRow = {
+    key: string;
+    date: string | null;
+    sub: number; // keeps a milestone's fee line right under its amount line
+    status: "In progress" | "In review" | "Pending" | "Paid" | "Fee";
+    contractId: string;
+    job: string;
+    client: string;
+    amount: number; // signed: earnings positive, fee negative
+    note?: string;
+  };
+  const ACTIVE = new Set([
+    "FUNDED",
+    "IN_REVIEW",
+    "PENDING",
+    "AVAILABLE",
+    "WITHDRAWN",
+  ]);
+  const rows: LedgerRow[] = [];
+  for (const m of milestones) {
+    const es = (m.escrow_status as string) || "";
+    if (!ACTIVE.has(es)) continue;
+    const gross = Number(m.amount) || 0;
+    const c = m.contracts || {};
+    const contractId = c.id as string;
+    const job = (c.title as string) || (m.title as string) || "Contract";
+    const client = clientNameById.get(c.client_id as string) || "Client";
+
+    let status: LedgerRow["status"];
+    let date: string | null;
+    if (es === "FUNDED") {
+      status = "In progress";
+      date = m.created_at ?? null;
+    } else if (es === "IN_REVIEW") {
+      status = "In review";
+      date = m.submitted_at ?? m.created_at ?? null;
+    } else if (es === "PENDING") {
+      status = "Pending";
+      date = m.approved_at ?? m.created_at ?? null;
+    } else {
+      status = "Paid";
+      date = m.approved_at ?? m.created_at ?? null;
+    }
+
+    rows.push({
+      key: `${m.id}-amt`,
+      date,
+      sub: 0,
+      status,
+      contractId,
+      job,
+      client,
+      amount: gross,
+    });
+    // The service fee is cut when work is approved (PENDING) — from that point
+    // on, show the deduction as its own line.
+    if (es === "PENDING" || es === "AVAILABLE" || es === "WITHDRAWN") {
+      rows.push({
+        key: `${m.id}-fee`,
+        date,
+        sub: 1,
+        status: "Fee",
+        contractId,
+        job,
+        client,
+        amount: -round2(gross * rate),
+        note: `${Math.round(rate * 100)}% marketplace fee`,
+      });
+    }
+  }
+  const dateMs = (d: string | null) => (d ? new Date(d).getTime() : 0);
+  rows.sort((a, b) => dateMs(b.date) - dateMs(a.date) || a.sub - b.sub);
+
+  const STATUS_PILL: Record<LedgerRow["status"], string> = {
+    "In progress": "bg-blue-500/10 text-blue-600",
+    "In review": "bg-amber-500/10 text-amber-600",
+    Pending: "bg-orange-500/10 text-orange-600",
+    Paid: "bg-primary/10 text-primary",
+    Fee: "bg-secondary text-muted-foreground",
+  };
 
   return (
     <main className="min-h-screen px-4 lg:px-16 py-8 w-full">
@@ -143,9 +243,10 @@ export default async function FinancesPage() {
             "pro"
           )}% instead of ${feePercent("basic")}%.`}
         />
-      ) : earnings.breakdown.length === 0 ? (
+      ) : rows.length === 0 ? (
         <div className="rounded-2xl border border-border bg-card p-10 text-center text-muted-foreground">
-          No transactions yet. Released milestone payments will appear here.
+          No transactions yet. Once a client funds a milestone, it appears here
+          and moves from In progress → In review → Pending → Paid.
         </div>
       ) : (
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -154,29 +255,49 @@ export default async function FinancesPage() {
               <thead className="bg-secondary/50 text-muted-foreground">
                 <tr>
                   <th className="text-left font-medium px-5 py-3">Date</th>
-                  <th className="text-left font-medium px-5 py-3">Job</th>
+                  <th className="text-left font-medium px-5 py-3">Status</th>
+                  <th className="text-left font-medium px-5 py-3">
+                    Client &amp; job
+                  </th>
                   <th className="text-right font-medium px-5 py-3">Amount</th>
-                  <th className="text-right font-medium px-5 py-3">Fee</th>
-                  <th className="text-right font-medium px-5 py-3">Net</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {earnings.breakdown.map((b) => (
-                  <tr key={b.id}>
-                    <td className="px-5 py-3 text-muted-foreground">
-                      {fmtDate(b.date)}
+                {rows.map((r) => (
+                  <tr key={r.key}>
+                    <td className="px-5 py-3 text-muted-foreground whitespace-nowrap">
+                      {fmtDate(r.date)}
                     </td>
-                    <td className="px-5 py-3 text-foreground">
-                      {(b.jobId && titleById.get(b.jobId)) || "Fixed-price payment"}
+                    <td className="px-5 py-3">
+                      <span
+                        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_PILL[r.status]}`}
+                      >
+                        {r.status}
+                      </span>
                     </td>
-                    <td className="px-5 py-3 text-right text-foreground">
-                      {money(b.gross)}
+                    <td className="px-5 py-3">
+                      {r.status === "Fee" ? (
+                        <span className="text-muted-foreground">{r.note}</span>
+                      ) : (
+                        <>
+                          <Link
+                            href={`/contracts/${r.contractId}`}
+                            className="text-foreground font-medium hover:text-primary hover:underline"
+                          >
+                            {r.job}
+                          </Link>
+                          <span className="block text-xs text-muted-foreground">
+                            {r.client}
+                          </span>
+                        </>
+                      )}
                     </td>
-                    <td className="px-5 py-3 text-right text-muted-foreground">
-                      −{money(b.fee)} ({Math.round((b.feeRate || 0) * 100)}%)
-                    </td>
-                    <td className="px-5 py-3 text-right font-medium text-foreground">
-                      {money(b.net)}
+                    <td
+                      className={`px-5 py-3 text-right font-medium whitespace-nowrap ${
+                        r.amount < 0 ? "text-muted-foreground" : "text-foreground"
+                      }`}
+                    >
+                      {r.amount < 0 ? `−${money(-r.amount)}` : money(r.amount)}
                     </td>
                   </tr>
                 ))}

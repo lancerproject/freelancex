@@ -26,6 +26,7 @@ import {
 import { refundEscrowAndComplete } from "@/lib/contract-closure";
 import { ContractMenu } from "@/components/contract-menu";
 import { StarRating } from "@/components/star-rating";
+import { StarRatingInput } from "@/components/star-rating-input";
 import { AttachmentUploader } from "@/components/attachment-uploader";
 import { netFromGross, feePercent, asPlan } from "@/lib/fees";
 import Link from "next/link";
@@ -872,29 +873,111 @@ export default async function ContractDetailsPage({
                 </form>
               )}
 
-              {/* End the contract early — either side, Upwork-style. */}
+              {/* End the contract early — either side, Upwork-style: pick a
+                  reason, then leave public + private feedback in one step. */}
               {contract.status === "active" && !closurePending && (
                 <details className="mt-4">
                   <summary className="text-sm text-muted-foreground cursor-pointer hover:text-foreground">
-                    End this contract early
+                    End this contract
                   </summary>
                   <form
                     action={endContract.bind(null, contract.id)}
-                    className="mt-3 rounded-2xl border border-border bg-card p-5 space-y-3"
+                    className="mt-3 rounded-2xl border border-border bg-card p-5 space-y-5"
                   >
                     <p className="text-sm text-foreground">
                       {isClient
                         ? "Unfunded milestones are removed. If funds are still in escrow, the freelancer gets 7 days to release them back to you or open a dispute; if they do nothing, the funds return to you automatically."
-                        : "Ending the contract closes it and returns any escrow that wasn't released to the client. You can both leave feedback afterwards."}
+                        : "Ending the contract closes it and returns any escrow that wasn't released to the client."}
                     </p>
-                    <textarea
-                      name="reason"
-                      rows={2}
-                      placeholder="Why are you ending it? (optional — shared with the other party)"
-                      className="w-full bg-background border border-border text-foreground rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                    <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full text-sm">
-                      End contract
+
+                    {/* 1 — reason for ending */}
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-semibold text-foreground">
+                        Why are you ending this contract?
+                      </label>
+                      <select
+                        name="reason"
+                        required
+                        defaultValue=""
+                        className="w-full bg-background border border-border text-foreground rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring"
+                      >
+                        <option value="" disabled>
+                          Select a reason…
+                        </option>
+                        <option value="Job completed successfully">
+                          Job completed successfully
+                        </option>
+                        {isClient ? (
+                          <>
+                            <option value="Freelancer stopped responding">
+                              Freelancer stopped responding
+                            </option>
+                            <option value="Work quality did not meet expectations">
+                              Work quality did not meet expectations
+                            </option>
+                            <option value="I no longer need this work done">
+                              I no longer need this work done
+                            </option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="Client stopped responding">
+                              Client stopped responding
+                            </option>
+                            <option value="Not enough work to continue">
+                              Not enough work to continue
+                            </option>
+                            <option value="Payment or scope concerns">
+                              Payment or scope concerns
+                            </option>
+                          </>
+                        )}
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+
+                    {/* 2 — public feedback (shown on their profile) */}
+                    <div className="space-y-2 rounded-xl border border-border bg-background p-4">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          Public feedback for {otherName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Shown on {isClient ? "the freelancer's" : "the client's"}{" "}
+                          profile once you both leave feedback.
+                        </p>
+                      </div>
+                      <StarRatingInput name="rating" />
+                      <textarea
+                        name="comment"
+                        rows={3}
+                        placeholder="Share details of your experience working together…"
+                        className="w-full bg-card border border-border text-foreground rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+
+                    {/* 3 — private feedback (only Xwork sees it) */}
+                    <div className="space-y-2 rounded-xl border border-border bg-background p-4">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          Private feedback 🔒
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Never shown to {otherName} or on any profile. It helps
+                          Xwork keep the marketplace healthy.
+                        </p>
+                      </div>
+                      <StarRatingInput name="private_rating" />
+                      <textarea
+                        name="private_comment"
+                        rows={3}
+                        placeholder="Anything you'd only tell Xwork? (optional)"
+                        className="w-full bg-card border border-border text-foreground rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+
+                    <button className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-full text-sm font-semibold">
+                      End contract &amp; submit feedback
                     </button>
                   </form>
                 </details>
@@ -1209,33 +1292,53 @@ export default async function ContractDetailsPage({
                   ) : (
                     <form
                       action={submitReview.bind(null, contract.id, otherId)}
-                      className="space-y-3 rounded-2xl border border-border bg-card p-4"
+                      className="space-y-4 rounded-2xl border border-border bg-card p-4"
                     >
                       <p className="font-medium text-foreground">
                         Provide feedback for {otherName}
                       </p>
-                      <select
-                        name="rating"
-                        required
-                        defaultValue=""
-                        className="w-full bg-background border border-border text-foreground rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring"
-                      >
-                        <option value="" disabled>
-                          Select a rating…
-                        </option>
-                        <option value="5">★★★★★ — Excellent</option>
-                        <option value="4">★★★★ — Good</option>
-                        <option value="3">★★★ — Average</option>
-                        <option value="2">★★ — Poor</option>
-                        <option value="1">★ — Terrible</option>
-                      </select>
-                      <textarea
-                        name="comment"
-                        rows={3}
-                        placeholder="Share details of your experience…"
-                        className="w-full bg-background border border-border text-foreground rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
-                      <button className="bg-primary text-primary-foreground px-4 py-2 rounded-full hover:opacity-90">
+
+                      {/* Public — shown on their profile */}
+                      <div className="space-y-2 rounded-xl border border-border bg-background p-4">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">
+                            Public feedback
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Shown on{" "}
+                            {isClient ? "the freelancer's" : "the client's"}{" "}
+                            profile once you both leave feedback.
+                          </p>
+                        </div>
+                        <StarRatingInput name="rating" />
+                        <textarea
+                          name="comment"
+                          rows={3}
+                          placeholder="Share details of your experience…"
+                          className="w-full bg-card border border-border text-foreground rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
+
+                      {/* Private — only Xwork sees it */}
+                      <div className="space-y-2 rounded-xl border border-border bg-background p-4">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">
+                            Private feedback 🔒
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Never shown to {otherName} or on any profile.
+                          </p>
+                        </div>
+                        <StarRatingInput name="private_rating" />
+                        <textarea
+                          name="private_comment"
+                          rows={3}
+                          placeholder="Anything you'd only tell Xwork? (optional)"
+                          className="w-full bg-card border border-border text-foreground rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
+
+                      <button className="bg-primary text-primary-foreground px-5 py-2.5 rounded-full text-sm font-semibold hover:opacity-90">
                         Submit feedback
                       </button>
                     </form>
