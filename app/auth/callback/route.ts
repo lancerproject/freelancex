@@ -41,6 +41,20 @@ export async function GET(request: Request) {
 
     const { data } = await supabase.auth.exchangeCodeForSession(code);
 
+    // Ensure the profile + role exist and are correct BEFORE any page renders.
+    // Without this, a Google sign-up's role was only fixed later inside the
+    // dashboard page — so the header (rendered by the layout) briefly read the
+    // pre-fix role and mislabelled a freelancer as "Client". Doing it here,
+    // server-side before the redirect, closes that race for every path.
+    if (data.session) {
+      try {
+        const { createProfile } = await import("@/app/dashboard/actions");
+        await createProfile();
+      } catch {
+        /* best-effort — the dashboard also runs this as a safety net */
+      }
+    }
+
     // Email-verification link (?next=/verified) opened in a different browser
     // than sign-up (very common — email apps open their own browser) has no
     // PKCE verifier cookie, so no session is established here. Rather than
