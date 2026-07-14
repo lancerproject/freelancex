@@ -57,7 +57,7 @@ export async function proxy(request: NextRequest) {
       try {
         const { data: prof } = await supabase
           .from("profiles")
-          .select("account_status, last_active_at")
+          .select("account_status, last_active_at, role")
           .eq("id", user.id)
           .maybeSingle();
         const s = prof?.account_status;
@@ -65,6 +65,35 @@ export async function proxy(request: NextRequest) {
           const url = request.nextUrl.clone();
           url.pathname = "/suspended";
           url.search = `?s=${s}`;
+          return NextResponse.redirect(url);
+        }
+
+        // Role separation: a client must never land on a freelancer-only area
+        // (and vice-versa). Guarded centrally so it holds for EVERY page — a
+        // mismatch bounces to /dashboard, which renders the correct home.
+        // Matches only exact route or sub-path (so "/freelancer" never catches
+        // the shared "/freelancers" talent directory).
+        const role = prof?.role;
+        const underOneOf = (prefixes: string[]) =>
+          prefixes.some((p) => path === p || path.startsWith(p + "/"));
+        const FREELANCER_ONLY = [
+          "/create-profile",
+          "/freelancer",
+          "/stats",
+          "/badges",
+          "/job-success",
+          "/finances",
+          "/transactions",
+          "/withdraw",
+        ];
+        const CLIENT_ONLY = ["/jobs/new", "/talent/hires"];
+        if (
+          (role === "client" && underOneOf(FREELANCER_ONLY)) ||
+          (role === "freelancer" && underOneOf(CLIENT_ONLY))
+        ) {
+          const url = request.nextUrl.clone();
+          url.pathname = "/dashboard";
+          url.search = "";
           return NextResponse.redirect(url);
         }
 
