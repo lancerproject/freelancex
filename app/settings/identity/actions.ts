@@ -93,13 +93,9 @@ export async function verifyIdentity(formData: FormData): Promise<{
     };
   }
 
-  if (faceScore > 0 && faceScore < 60) {
-    await recordVerificationFailure(user.id, "low_face_match");
-    return {
-      ok: false,
-      error: `Face match is too low (${faceScore}%). Your selfie, photo and ID must be the same person.`,
-    };
-  }
+  // Face match is a SOFT signal now: a good match auto-verifies; a weak or
+  // unavailable one quietly goes to manual review (never a hard rejection).
+  // The user is never told the score or that it was low.
 
   // One verified account per identity. The same ID document can only be
   // verified on one active account at a time; after a permanent suspension it
@@ -130,10 +126,12 @@ export async function verifyIdentity(formData: FormData): Promise<{
     };
   }
 
-  // When automatic face matching couldn't run (score 0), the documents go to
-  // a MANUAL REVIEW queue instead of instant verification. An admin approves
-  // or rejects from /admin/identity.
-  const needsReview = !faceScore || faceScore <= 0;
+  // Auto-verify when the face match is confident enough (≥55%). Otherwise —
+  // weak match, or matching couldn't run — the documents go to the MANUAL
+  // REVIEW queue and an admin approves/rejects from /admin/identity. Either
+  // way the user sees the same "submitted, under review" confirmation.
+  const AUTO_VERIFY_MIN = 55;
+  const needsReview = !faceScore || faceScore < AUTO_VERIFY_MIN;
 
   const { error } = await supabase
     .from("profiles")
@@ -161,8 +159,8 @@ export async function verifyIdentity(formData: FormData): Promise<{
       supabase,
       user.id,
       "account",
-      "Identity documents received",
-      "Automatic face matching wasn't available, so our team is reviewing your documents manually. This usually takes less than 24 hours — we'll notify you as soon as it's done.",
+      "Verification submitted",
+      "Thank you — your identity verification has been submitted. Our trust & safety team will review it manually, usually within 24 hours. We'll notify you as soon as it's complete.",
       "/settings/identity"
     );
     revalidatePath("/settings/identity");

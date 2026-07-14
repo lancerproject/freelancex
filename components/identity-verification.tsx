@@ -8,6 +8,8 @@ import { COUNTRIES } from "@/lib/countries";
 
 /* ------------------------------------------------------------------ */
 /* face-api.js (loaded from CDN at runtime, ignored by the bundler)    */
+/* Loaded lazily HERE only — never in the main bundle — so it never    */
+/* slows the rest of the site.                                         */
 /* ------------------------------------------------------------------ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let faceapi: any = null;
@@ -57,7 +59,6 @@ async function descriptor(api: any, src: string) {
 function matchPct(api: any, a: Float32Array | null, b: Float32Array | null) {
   if (!a || !b) return 0;
   const dist = api.euclideanDistance(a, b);
-  // distance 0 = identical, ~0.6 = typical threshold. Map to a 0–100 score.
   return Math.max(0, Math.min(100, Math.round((1 - dist / 0.6) * 100)));
 }
 
@@ -84,100 +85,143 @@ export function IdentityVerification({
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [inReview, setInReview] = useState(false);
+  const [camOn, setCamOn] = useState(false);
+  const [countdown, setCountdown] = useState(0);
   const [pending, start] = useTransition();
   const router = useRouter();
 
-  const frontRef = useRef<HTMLInputElement>(null);
-  const backRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const uploadFile = async (
-    file: File,
-    set: (s: Shot) => void,
-    label: string
-  ) => {
-    setError("");
-    setBusy(`Uploading ${label}…`);
-    const preview = URL.createObjectURL(file);
-    const fd = new FormData();
-    fd.set("file", file);
-    const res = await uploadToStorage(fd);
-    setBusy("");
-    if (res.url) set({ url: res.url, preview });
-    else setError(res.error || "Upload failed.");
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setCamOn(false);
   };
 
-  // Camera for selfie
-  const startCamera = async () => {
+  // Rear ("environment") camera for ID cards; front ("user") for the selfie.
+  const startCamera = async (facing: "user" | "environment") => {
+    stopCamera();
     setError("");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
+        video: {
+          facingMode: { ideal: facing },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
       });
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
+      setCamOn(true);
     } catch {
-      setError("Couldn't access your camera. Allow camera access and retry.");
+      setError(
+        "We couldn't open your camera. Allow camera access for this site, then tap “Start camera”. On iPhone: Settings → Safari → Camera → Allow. On Android: tap the lock icon in the address bar → Permissions → Camera."
+      );
+      setCamOn(false);
     }
   };
-  const stopCamera = () => {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
-  };
 
-  const captureSelfie = async () => {
+  const captureFrame = async (
+    name: string
+  ): Promise<{ file: File; preview: string } | null> => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !video.videoWidth) {
+      setError("The camera isn't ready yet — give it a second and try again.");
+      return null;
+    }
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth || 480;
-    canvas.height = video.videoHeight || 480;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
     canvas.getContext("2d")!.drawImage(video, 0, 0, canvas.width, canvas.height);
     const blob: Blob = await new Promise((res) =>
-      canvas.toBlob((b) => res(b!), "image/jpeg", 0.9)
+      canvas.toBlob((b) => res(b!), "image/jpeg", 0.92)
     );
-    stopCamera();
-    const file = new File([blob], "selfie.jpg", { type: "image/jpeg" });
-    const preview = URL.createObjectURL(file);
-    setBusy("Uploading selfie…");
+    const file = new File([blob], name, { type: "image/jpeg" });
+    return { file, preview: URL.createObjectURL(file) };
+  };
+
+  const uploadShot = async (
+    file: File,
+    preview: string,
+    set: (s: Shot) => void,
+    label: string
+  ) => {
+    setBusy(`Saving ${label}…`);
     const fd = new FormData();
     fd.set("file", file);
     const res = await uploadToStorage(fd);
-    if (!res.url) {
-      setBusy("");
-      setError(res.error || "Upload failed.");
-      return;
+    setBusy("");
+    if (res.url) {
+      set({ url: res.url, preview });
+      return true;
     }
-    setSelfie({ url: res.url, preview });
+    setError(res.error || "Upload failed.");
+    return false;
+  };
 
-    // Run face matching: selfie ↔ profile photo ↔ ID front
-    setBusy("Matching your face…");
+  // Capture an ID side from the (rear) camera.
+  const captureId = async (set: (s: Shot) => void, label: string) => {
+    const shot = await captureFrame(`${label}.jpg`);
+    if (!shot) return;
+    stopCamera();
+    await uploadShot(shot.file, shot.preview, set, label);
+  };
+
+  const captureSelfie = async () => {
+    const shot = await captureFrame("selfie.jpg");
+    if (!shot) return;
+    stopCamera();
+    const ok = await uploadShot(shot.file, shot.preview, setSelfie, "selfie");
+    if (!ok) return;
+
+    // Face match: selfie ↔ profile photo ↔ ID front. Best-effort — if it can't
+    // run, the score stays null and the submission goes to manual review.
+    setBusy("Checking your photo…");
     const api = await loadFaceApi();
     if (!api) {
-      setFaceScore(null); // matching unavailable — fall back to name + docs
+      setFaceScore(null);
       setBusy("");
       return;
     }
     const [selfieD, profD, idD] = await Promise.all([
-      descriptor(api, preview),
+      descriptor(api, shot.preview),
       profilePhoto ? descriptor(api, profilePhoto) : Promise.resolve(null),
       front ? descriptor(api, front.preview) : Promise.resolve(null),
     ]);
     const scores: number[] = [];
     if (profD) scores.push(matchPct(api, selfieD, profD));
     if (idD) scores.push(matchPct(api, selfieD, idD));
-    const score = scores.length ? Math.round(Math.min(...scores)) : 0;
-    setFaceScore(score);
+    setFaceScore(scores.length ? Math.round(Math.min(...scores)) : 0);
     setBusy("");
+  };
+
+  // Face-ID-style countdown then auto-capture the selfie.
+  const startSelfieCountdown = () => {
+    if (!camOn) return;
+    let n = 3;
+    setCountdown(3);
+    const tick = () => {
+      n -= 1;
+      if (n <= 0) {
+        setCountdown(0);
+        void captureSelfie();
+      } else {
+        setCountdown(n);
+        setTimeout(tick, 1000);
+      }
+    };
+    setTimeout(tick, 1000);
   };
 
   const submit = () => {
     setError("");
     if (!front || !back || !selfie) {
-      setError("Please complete all steps.");
+      setError("Please complete all three scans first.");
       return;
     }
     const fd = new FormData();
@@ -203,24 +247,30 @@ export function IdentityVerification({
   };
 
   if (done) {
+    // Whether it auto-verified or went to manual review, we thank the user the
+    // same way — a low/failed face match is NEVER surfaced to them.
     return inReview ? (
-      <div className="rounded-2xl border border-border bg-card p-8 text-center">
-        <div className="text-5xl mb-3">🕐</div>
+      <div className="rounded-2xl border border-border bg-card p-8 text-center max-w-lg">
+        <div className="text-5xl mb-3">⏳</div>
         <h3 className="text-xl font-bold text-foreground">
-          Documents submitted — manual review
+          Verification submitted
         </h3>
         <p className="text-muted-foreground mt-2">
-          Automatic face matching wasn&apos;t available, so our team is
-          checking your documents by hand. This usually takes less than 24
-          hours — we&apos;ll send you a notification the moment it&apos;s done.
+          Thank you! Your identity verification has been submitted successfully.
+          Our trust &amp; safety team will review it manually — this usually
+          takes up to 24 hours. We&apos;ll notify you once it&apos;s complete.
         </p>
+        <a
+          href="/dashboard"
+          className="inline-block mt-5 bg-primary text-primary-foreground px-6 py-2.5 rounded-full font-semibold hover:opacity-90"
+        >
+          Go to dashboard
+        </a>
       </div>
     ) : (
-      <div className="rounded-2xl border border-border bg-card p-8 text-center">
+      <div className="rounded-2xl border border-border bg-card p-8 text-center max-w-lg">
         <div className="text-5xl mb-3">✅</div>
-        <h3 className="text-xl font-bold text-foreground">
-          Identity verified
-        </h3>
+        <h3 className="text-xl font-bold text-foreground">Identity verified</h3>
         <p className="text-muted-foreground mt-2">
           Your profile now shows a verified badge{" "}
           <span className="text-primary">✓</span>. Thanks for keeping Xwork
@@ -237,8 +287,8 @@ export function IdentityVerification({
   }
 
   const Stepper = (
-    <div className="flex items-center gap-2 mb-6 text-xs">
-      {["Front of ID", "Back of ID", "Your name", "Selfie"].map((label, i) => {
+    <div className="flex items-center gap-2 mb-6 text-xs flex-wrap">
+      {["Front of ID", "Back of ID", "Your details", "Selfie"].map((label, i) => {
         const n = i + 1;
         return (
           <div key={label} className="flex items-center gap-2">
@@ -247,8 +297,8 @@ export function IdentityVerification({
                 step > n
                   ? "bg-primary text-white"
                   : step === n
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-muted-foreground"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-muted-foreground"
               }`}
             >
               {step > n ? "✓" : n}
@@ -265,6 +315,79 @@ export function IdentityVerification({
     </div>
   );
 
+  // Reusable rear-camera capture UI for an ID side.
+  const IdCapture = ({
+    shot,
+    set,
+    label,
+    heading,
+    hint,
+  }: {
+    shot: Shot;
+    set: (s: Shot) => void;
+    label: string;
+    heading: string;
+    hint: string;
+  }) => (
+    <div>
+      <h3 className="text-lg font-bold text-foreground">{heading}</h3>
+      <p className="text-sm text-muted-foreground mt-1 mb-4">{hint}</p>
+
+      {shot ? (
+        <div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={shot.preview}
+            alt={label}
+            className="w-full max-w-sm rounded-lg border border-border"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              set(null);
+              startCamera("environment");
+            }}
+            className="text-sm text-primary hover:underline mt-2"
+          >
+            Retake
+          </button>
+        </div>
+      ) : (
+        <div>
+          <div className="relative w-full max-w-sm">
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              className="w-full rounded-lg border border-border bg-black aspect-[4/3] object-cover"
+            />
+            {/* ID guide frame */}
+            <div className="pointer-events-none absolute inset-6 rounded-xl border-2 border-white/80" />
+          </div>
+          <div className="flex gap-3 mt-3">
+            {!camOn ? (
+              <button
+                type="button"
+                onClick={() => startCamera("environment")}
+                className="border border-border rounded-full px-4 py-2 text-sm hover:bg-secondary"
+              >
+                Start camera
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => captureId(set, label)}
+                className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-semibold hover:opacity-90"
+              >
+                Capture
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="rounded-2xl border border-border bg-card p-6 lg:p-8 max-w-2xl">
       {Stepper}
@@ -275,44 +398,24 @@ export function IdentityVerification({
       )}
       {busy && <p className="mb-4 text-sm text-muted-foreground">{busy}</p>}
 
-      {/* Step 1 — front */}
+      {/* Step 1 — front of ID (rear camera) */}
       {step === 1 && (
         <div>
-          <h3 className="text-lg font-bold text-foreground">Scan the front of your ID</h3>
-          <p className="text-sm text-muted-foreground mt-1 mb-4">
-            Upload a clear photo of the front of your government ID (passport,
-            driver&apos;s license or national ID).
-          </p>
-          {front ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={front.preview} alt="front" className="w-full max-w-sm rounded-lg border border-border" />
-          ) : (
-            <button
-              type="button"
-              onClick={() => frontRef.current?.click()}
-              className="w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 p-8 text-center"
-            >
-              <p className="text-2xl">🪪</p>
-              <p className="text-sm font-medium text-foreground mt-2">
-                Upload front of ID
-              </p>
-            </button>
-          )}
-          <input
-            ref={frontRef}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={(e) =>
-              e.target.files?.[0] &&
-              uploadFile(e.target.files[0], setFront, "front of ID")
-            }
+          <IdCapture
+            shot={front}
+            set={setFront}
+            label="front of ID"
+            heading="Scan the front of your ID"
+            hint="Hold your government ID (passport, driver's license or national ID) inside the frame and tap Capture. Keep it flat and readable."
           />
           <div className="flex justify-end mt-6">
             <button
               type="button"
               disabled={!front}
-              onClick={() => setStep(2)}
+              onClick={() => {
+                stopCamera();
+                setStep(2);
+              }}
               className="bg-primary text-primary-foreground px-6 py-2.5 rounded-full font-semibold hover:opacity-90 disabled:opacity-40"
             >
               Next
@@ -321,46 +424,34 @@ export function IdentityVerification({
         </div>
       )}
 
-      {/* Step 2 — back */}
+      {/* Step 2 — back of ID (rear camera) */}
       {step === 2 && (
         <div>
-          <h3 className="text-lg font-bold text-foreground">Scan the back of your ID</h3>
-          <p className="text-sm text-muted-foreground mt-1 mb-4">
-            Now upload the back side of the same ID.
-          </p>
-          {back ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={back.preview} alt="back" className="w-full max-w-sm rounded-lg border border-border" />
-          ) : (
-            <button
-              type="button"
-              onClick={() => backRef.current?.click()}
-              className="w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 p-8 text-center"
-            >
-              <p className="text-2xl">🪪</p>
-              <p className="text-sm font-medium text-foreground mt-2">
-                Upload back of ID
-              </p>
-            </button>
-          )}
-          <input
-            ref={backRef}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={(e) =>
-              e.target.files?.[0] &&
-              uploadFile(e.target.files[0], setBack, "back of ID")
-            }
+          <IdCapture
+            shot={back}
+            set={setBack}
+            label="back of ID"
+            heading="Scan the back of your ID"
+            hint="Now flip your ID over and show the back inside the frame."
           />
           <div className="flex justify-between mt-6">
-            <button type="button" onClick={() => setStep(1)} className="px-4 py-2 text-foreground hover:bg-secondary rounded-full">
+            <button
+              type="button"
+              onClick={() => {
+                stopCamera();
+                setStep(1);
+              }}
+              className="px-4 py-2 text-foreground hover:bg-secondary rounded-full"
+            >
               Back
             </button>
             <button
               type="button"
               disabled={!back}
-              onClick={() => setStep(3)}
+              onClick={() => {
+                stopCamera();
+                setStep(3);
+              }}
               className="bg-primary text-primary-foreground px-6 py-2.5 rounded-full font-semibold hover:opacity-90 disabled:opacity-40"
             >
               Next
@@ -369,10 +460,12 @@ export function IdentityVerification({
         </div>
       )}
 
-      {/* Step 3 — name */}
+      {/* Step 3 — details */}
       {step === 3 && (
         <div>
-          <h3 className="text-lg font-bold text-foreground">Confirm your legal name</h3>
+          <h3 className="text-lg font-bold text-foreground">
+            Confirm your details
+          </h3>
           <p className="text-sm text-muted-foreground mt-1 mb-4">
             Enter your name exactly as it appears on your ID. It must match your
             profile name.
@@ -422,8 +515,7 @@ export function IdentityVerification({
               className="w-full bg-background border border-border text-foreground rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Each person can verify only one Xwork account. This document can&apos;t
-              be used to verify a second account.
+              Each person can verify only one Xwork account.
             </p>
           </div>
 
@@ -449,7 +541,11 @@ export function IdentityVerification({
           </div>
 
           <div className="flex justify-between mt-6">
-            <button type="button" onClick={() => setStep(2)} className="px-4 py-2 text-foreground hover:bg-secondary rounded-full">
+            <button
+              type="button"
+              onClick={() => setStep(2)}
+              className="px-4 py-2 text-foreground hover:bg-secondary rounded-full"
+            >
               Back
             </button>
             <button
@@ -469,59 +565,80 @@ export function IdentityVerification({
         </div>
       )}
 
-      {/* Step 4 — selfie */}
+      {/* Step 4 — automatic selfie (front camera) */}
       {step === 4 && (
         <div>
           <h3 className="text-lg font-bold text-foreground">Take a live selfie</h3>
           <p className="text-sm text-muted-foreground mt-1 mb-4">
-            We match your selfie to your profile photo and ID photo to confirm
-            it&apos;s really you.
+            Look straight at the camera and hold still — we&apos;ll take your
+            photo automatically.
           </p>
 
           {!selfie ? (
             <div>
-              <video
-                ref={videoRef}
-                playsInline
-                muted
-                className="w-full max-w-sm rounded-lg border border-border bg-secondary aspect-[4/3] object-cover"
-              />
-              <div className="flex gap-3 mt-3">
-                <button type="button" onClick={startCamera} className="border border-border rounded-full px-4 py-2 text-sm hover:bg-secondary">
-                  Start camera
-                </button>
-                <button type="button" onClick={captureSelfie} className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-semibold hover:opacity-90">
-                  Capture selfie
-                </button>
+              <div className="relative w-full max-w-xs mx-auto">
+                <video
+                  ref={videoRef}
+                  playsInline
+                  muted
+                  className="w-full rounded-full border border-border bg-black aspect-square object-cover"
+                />
+                {/* Oval face guide */}
+                <div className="pointer-events-none absolute inset-4 rounded-full border-2 border-white/80" />
+                {countdown > 0 && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-6xl font-bold text-white drop-shadow-lg">
+                      {countdown}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-3 mt-4 justify-center">
+                {!camOn ? (
+                  <button
+                    type="button"
+                    onClick={() => startCamera("user")}
+                    className="border border-border rounded-full px-4 py-2 text-sm hover:bg-secondary"
+                  >
+                    Start camera
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      disabled={countdown > 0}
+                      onClick={startSelfieCountdown}
+                      className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-60"
+                    >
+                      {countdown > 0 ? `Capturing in ${countdown}…` : "Start"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={captureSelfie}
+                      className="border border-border rounded-full px-4 py-2 text-sm hover:bg-secondary"
+                    >
+                      Capture now
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ) : (
-            <div>
+            <div className="text-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={selfie.preview} alt="selfie" className="w-full max-w-sm rounded-lg border border-border" />
-              {faceScore !== null && (
-                <p
-                  className={`mt-3 text-sm font-medium ${
-                    faceScore >= 60 ? "text-primary" : "text-destructive"
-                  }`}
-                >
-                  Face match: {faceScore}%{" "}
-                  {faceScore >= 60 ? "✓" : "— must be the same person"}
-                </p>
-              )}
-              {faceScore === null && (
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Automatic face matching is unavailable right now — your
-                  documents and name will be checked.
-                </p>
-              )}
+              <img
+                src={selfie.preview}
+                alt="selfie"
+                className="w-40 h-40 mx-auto rounded-full object-cover border border-border"
+              />
               <button
                 type="button"
                 onClick={() => {
                   setSelfie(null);
                   setFaceScore(null);
+                  startCamera("user");
                 }}
-                className="text-sm text-primary hover:underline mt-2"
+                className="block mx-auto text-sm text-primary hover:underline mt-3"
               >
                 Retake
               </button>
@@ -529,16 +646,23 @@ export function IdentityVerification({
           )}
 
           <div className="flex justify-between mt-6">
-            <button type="button" onClick={() => { stopCamera(); setStep(3); }} className="px-4 py-2 text-foreground hover:bg-secondary rounded-full">
+            <button
+              type="button"
+              onClick={() => {
+                stopCamera();
+                setStep(3);
+              }}
+              className="px-4 py-2 text-foreground hover:bg-secondary rounded-full"
+            >
               Back
             </button>
             <button
               type="button"
-              disabled={!selfie || pending || (faceScore !== null && faceScore < 60)}
+              disabled={!selfie || pending || !!busy}
               onClick={submit}
               className="bg-primary text-primary-foreground px-6 py-2.5 rounded-full font-semibold hover:opacity-90 disabled:opacity-40"
             >
-              {pending ? "Verifying…" : "Submit & verify"}
+              {pending ? "Submitting…" : "Submit verification"}
             </button>
           </div>
         </div>
