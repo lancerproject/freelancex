@@ -180,7 +180,20 @@ export async function refreshTalentStats(userId: string): Promise<TalentStats | 
     badgeBanUntil: profile.badge_ban_until ?? null,
   };
 
-  const badge = computeTalentBadge(inputs);
+  const computed = computeTalentBadge(inputs);
+
+  // Staff/showcase override — a manually granted badge
+  // (profiles.talent_badge_override) wins over the computed one. Used to award
+  // a badge by hand or to show a badge on a demo account that's too new to
+  // qualify organically. Any other value (null / "none") means "no override".
+  const overrideRaw = (profile.talent_badge_override as string | null) || null;
+  const override: TalentBadgeKey | null =
+    overrideRaw === "rising_talent" ||
+    overrideRaw === "top_rated" ||
+    overrideRaw === "top_rated_plus"
+      ? overrideRaw
+      : null;
+  const badge = override ?? computed;
 
   // ---- Persist on the 15-day tick (and whenever the badge changed) ----------
   if (stale) {

@@ -5,11 +5,11 @@ import { notFound, redirect } from "next/navigation";
 import { toggleSaveJob } from "@/app/saved/actions";
 import { deleteJob, inviteToJob } from "@/app/(dashboard)/jobs/actions";
 import { EXPERIENCE_LEVELS, DURATIONS, labelFor } from "@/lib/categories";
-import { LocalTime } from "@/components/local-time";
 import { CopyLink } from "@/components/copy-link";
 import { JobActivity } from "@/components/job-activity";
 import { getJobActivity } from "@/app/(dashboard)/jobs/activity-actions";
 import { getClientInfo } from "@/app/(dashboard)/jobs/client-actions";
+import { AboutTheClient } from "@/components/about-the-client";
 import { talentLocationLabel } from "@/lib/job-location";
 import { proposalStatusLabel } from "@/lib/proposal-status";
 import { JobDescription } from "@/components/job-description";
@@ -147,36 +147,19 @@ export default async function JobDetailsPage({
     const ownerActivity = await getJobActivity(id);
     const { data: clientProfile } = await supabase
       .from("profiles")
-      .select("location, country, city, timezone, created_at, phone")
+      .select("timezone, phone")
       .eq("id", job.client_id)
       .maybeSingle();
 
-    // The client's location can live in `location` OR the country/city fields
-    // (the client settings save country/city, not `location`).
-    const clientLocation =
-      clientProfile?.location ||
-      [clientProfile?.city, clientProfile?.country].filter(Boolean).join(", ");
-
-    const { count: openJobs } = await supabase
-      .from("jobs")
-      .select("*", { count: "exact", head: true })
-      .eq("client_id", job.client_id)
-      .or("status.eq.open,status.is.null");
-
-    const { count: totalJobs } = await supabase
-      .from("jobs")
-      .select("*", { count: "exact", head: true })
-      .eq("client_id", job.client_id);
-
-    const { count: contractsCount } = await supabase
+    // Same "About the client" summary the freelancer sees — driven by the ONE
+    // source of truth (getClientInfo) so the owner and freelancer views can
+    // never disagree on payment status, open-job count, member-since, etc.
+    const ownerClientInfo = await getClientInfo(job.client_id);
+    const { count: ownerActiveContracts } = await supabase
       .from("contracts")
       .select("*", { count: "exact", head: true })
-      .eq("client_id", job.client_id);
-
-    const hireRate =
-      totalJobs && totalJobs > 0
-        ? Math.round(((contractsCount ?? 0) / totalJobs) * 100)
-        : 0;
+      .eq("client_id", job.client_id)
+      .eq("status", "active");
 
     // Freelancers to invite (only fetched on the invite tab)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -389,50 +372,14 @@ export default async function JobDetailsPage({
                 </span>
               </div>
 
-              {/* About the client */}
+              {/* About the client — identical to the freelancer's view. */}
               <div className="border-t border-border pt-5">
-                <h3 className="font-semibold text-foreground text-base mb-3">
-                  About the client
-                </h3>
-                <p className="text-muted-foreground">
-                  Payment method not verified
-                </p>
-                <p
-                  className={`mt-2 ${
-                    clientProfile?.phone
-                      ? "text-primary"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  {clientProfile?.phone
-                    ? "✓ Phone number verified"
-                    : "Phone number not verified"}
-                </p>
-                <p className="text-foreground mt-3">
-                  {clientLocation || "Location not set"}
-                  {clientLocation && (
-                    <>
-                      {" · "}
-                      <LocalTime
-                        timezone={clientProfile?.timezone ?? undefined}
-                      />{" "}
-                      local time
-                    </>
-                  )}
-                </p>
-                <p className="text-muted-foreground mt-3">
-                  {hireRate}% hire rate, {openJobs ?? 0} open job
-                  {(openJobs ?? 0) === 1 ? "" : "s"}
-                </p>
-                {clientProfile?.created_at && (
-                  <p className="text-muted-foreground mt-3">
-                    Member since{" "}
-                    {new Date(clientProfile.created_at).toLocaleDateString(
-                      undefined,
-                      { year: "numeric", month: "short", day: "numeric" }
-                    )}
-                  </p>
-                )}
+                <AboutTheClient
+                  ci={ownerClientInfo}
+                  phone={clientProfile?.phone}
+                  timezone={clientProfile?.timezone}
+                  activeContracts={ownerActiveContracts ?? 0}
+                />
                 <div className="mt-4">
                   <p className="text-foreground font-semibold mb-1">Job link</p>
                   <CopyLink path={`/jobs/${id}`} />
@@ -999,15 +946,6 @@ export default async function JobDetailsPage({
 
   // "About the client" summary: spend, hire rate, hires, reviews, member since.
   const ci = await getClientInfo(job.client_id);
-  const clientMemberSince = ci?.createdAt
-    ? new Date(ci.createdAt).toLocaleDateString(undefined, {
-        month: "long",
-        year: "numeric",
-      })
-    : null;
-  // Compact money like Upwork ("$3.6K total spent").
-  const compactMoney = (n: number) =>
-    n >= 1000 ? `$${(n / 1000).toFixed(1)}K` : `$${n}`;
 
   // Other open jobs this client currently has (excluding the one being viewed).
   const { data: otherOpenJobs } = await supabase
@@ -1278,75 +1216,12 @@ export default async function JobDetailsPage({
           </div>
 
           <div className="rounded-2xl border border-border bg-card p-6">
-            <h3 className="font-semibold text-foreground mb-4">
-              About the client
-            </h3>
-            <div className="space-y-3 text-sm">
-              <p className="flex items-center gap-2 text-foreground">
-                <span className={ci?.paymentVerified ? "text-primary" : "text-muted-foreground"}>
-                  {ci?.paymentVerified ? "✓" : "○"}
-                </span>
-                Payment method {ci?.paymentVerified ? "verified" : "not verified"}
-              </p>
-              <p className="flex items-center gap-2 text-foreground">
-                <span
-                  className={
-                    clientExtra?.phone ? "text-primary" : "text-muted-foreground"
-                  }
-                >
-                  {clientExtra?.phone ? "✓" : "○"}
-                </span>
-                Phone number {clientExtra?.phone ? "verified" : "not verified"}
-              </p>
-              {ci && ci.reviewCount > 0 && (
-                <p className="text-foreground">
-                  ★ {ci.avgRating.toFixed(1)}{" "}
-                  <span className="text-muted-foreground">
-                    ({ci.reviewCount} review{ci.reviewCount === 1 ? "" : "s"})
-                  </span>
-                </p>
-              )}
-              {ci?.country && (
-                <p className="text-muted-foreground">
-                  📍 {ci.country}
-                  {clientExtra?.timezone && (
-                    <span>
-                      {" "}
-                      · <LocalTime timezone={clientExtra.timezone} />
-                    </span>
-                  )}
-                </p>
-              )}
-              {ci && ci.totalSpent > 0 ? (
-                <p className="text-muted-foreground">
-                  {compactMoney(ci.totalSpent)} total spent
-                  {ci.hires > 0 &&
-                    ` · ${ci.hires} hire${ci.hires === 1 ? "" : "s"}`}
-                  {(clientActiveContracts ?? 0) > 0 &&
-                    `, ${clientActiveContracts} active`}
-                </p>
-              ) : (
-                <span className="inline-block text-xs bg-secondary text-foreground rounded-full px-2.5 py-1">
-                  New client
-                </span>
-              )}
-              <p className="text-muted-foreground">
-                {ci?.jobsPosted ?? 0} job{(ci?.jobsPosted ?? 0) === 1 ? "" : "s"} posted
-                {typeof ci?.hireRate === "number" &&
-                  (ci?.jobsPosted ?? 0) > 0 &&
-                  ` · ${ci.hireRate}% hire rate`}
-              </p>
-              {ci && ci.openJobs > 0 && (
-                <p className="text-muted-foreground">
-                  {ci.openJobs} open job{ci.openJobs === 1 ? "" : "s"}
-                </p>
-              )}
-              {clientMemberSince && (
-                <p className="text-muted-foreground">
-                  Member since {clientMemberSince}
-                </p>
-              )}
-            </div>
+            <AboutTheClient
+              ci={ci}
+              phone={clientExtra?.phone}
+              timezone={clientExtra?.timezone}
+              activeContracts={clientActiveContracts ?? 0}
+            />
           </div>
 
           {/* Job link + working Copy link button */}
