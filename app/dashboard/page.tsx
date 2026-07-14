@@ -48,6 +48,13 @@ export default async function DashboardPage({
   const resume = wizardResumePath(profile);
   if (resume) redirect(resume);
 
+  // Never guess a role. If it's missing/invalid the account would otherwise
+  // fall through to the freelancer view while the header labels it "Client"
+  // (or vice-versa) — send them to pick one so the whole UI stays consistent.
+  if (profile?.role !== "client" && profile?.role !== "freelancer") {
+    redirect("/select-role");
+  }
+
   const isClient = profile?.role === "client";
   const displayName =
     profile?.full_name || profile?.username || user.email?.split("@")[0];

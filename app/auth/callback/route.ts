@@ -39,10 +39,20 @@ export async function GET(request: Request) {
       }
     );
 
-    await supabase.auth.exchangeCodeForSession(code);
+    const { data } = await supabase.auth.exchangeCodeForSession(code);
+
+    // Email-verification link (?next=/verified) opened in a different browser
+    // than sign-up (very common — email apps open their own browser) has no
+    // PKCE verifier cookie, so no session is established here. Rather than
+    // bounce the user around, send them to log in with a clear success banner —
+    // the email IS now confirmed on Supabase's side.
+    if (next === "/verified" && !data.session) {
+      return NextResponse.redirect(`${baseUrl}/login?verified=1`);
+    }
   }
 
-  // Email-confirmation links pass ?next=/verified to show the congrats screen.
+  // Same tab throughout. ?next=/verified → congrats screen; reset links →
+  // /reset-password; OAuth → home.
   const dest = next && next.startsWith("/") ? `${baseUrl}${next}` : baseUrl;
   return NextResponse.redirect(dest);
 }

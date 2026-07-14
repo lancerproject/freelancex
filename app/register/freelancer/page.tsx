@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { loginWithGoogle } from "../../login/actions";
 import { signUpWithEmail } from "../actions";
+import { SubmitButton } from "@/components/submit-button";
 import { PasswordInput } from "@/components/password-input";
 import { CountrySelect } from "@/components/country-select";
 
@@ -152,12 +153,12 @@ export default async function FreelancerRegisterPage({
               </span>
             </label>
 
-            <button
-              type="submit"
-              className="w-full bg-primary text-primary-foreground rounded-full py-3 px-4 font-semibold hover:opacity-90 transition"
+            <SubmitButton
+              pendingText="Creating your account…"
+              className="w-full bg-primary text-primary-foreground rounded-full py-3 px-4 font-semibold hover:opacity-90 transition disabled:opacity-50"
             >
               Create my account
-            </button>
+            </SubmitButton>
           </form>
 
           <p className="text-center text-neutral-600 text-sm mt-5">

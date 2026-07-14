@@ -15,6 +15,7 @@ function LoginInner() {
   // refresh (or a fresh attempt) doesn't keep re-showing a stale message.
   const [error, setError] = useState<string | null>(params.get("error"))
   const [reset] = useState<string | null>(params.get("reset"))
+  const [verified] = useState<string | null>(params.get("verified"))
   const [closed] = useState<string | null>(params.get("closed"))
   const [passwordChanged] = useState<string | null>(
     params.get("password_changed")
@@ -45,6 +46,11 @@ function LoginInner() {
           {error && (
             <div className="mb-4 p-3 bg-destructive/10 text-destructive border border-destructive/30 rounded-lg text-sm">
               {error}
+            </div>
+          )}
+          {verified && (
+            <div className="mb-4 p-3 bg-green-500/10 text-green-600 border border-green-500/30 rounded-lg text-sm">
+              ✅ Your email has been verified. Please log in.
             </div>
           )}
           {reset && (
