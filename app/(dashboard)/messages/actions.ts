@@ -5,6 +5,24 @@ import { detectOffPlatform, recordWarning } from "@/lib/moderation";
 import { isRateLimited } from "@/lib/rate-limit";
 import { notify } from "@/lib/notify";
 
+// Authorization guard: true only when the user is one of the two participants
+// of the conversation. Chat actions take a client-supplied conversationId, so
+// each must confirm membership before reading/writing — otherwise a user could
+// inject messages into, or mark read, strangers' threads.
+async function isConversationMember(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  userId: string,
+  conversationId: string
+): Promise<boolean> {
+  const { data: c } = await supabase
+    .from("conversations")
+    .select("participant_1, participant_2")
+    .eq("id", conversationId)
+    .maybeSingle();
+  return !!c && (c.participant_1 === userId || c.participant_2 === userId);
+}
+
 // Mark the OTHER participant's messages in a conversation as read. Callable
 // from the client so read receipts update LIVE while the chat is open (not just
 // on page load) — the resulting UPDATE broadcasts over realtime so the sender
@@ -18,6 +36,8 @@ export async function markConversationRead(
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return { ok: false };
+    if (!(await isConversationMember(supabase, user.id, conversationId)))
+      return { ok: false };
     await supabase
       .from("messages")
       .update({ read: true })
@@ -135,6 +155,10 @@ export async function sendChatMessage(
 
   const text = (content || "").trim();
   if (!text) return { ok: false, error: "Message is empty." };
+
+  // Authorization: only a participant of this conversation may post to it.
+  if (!(await isConversationMember(supabase, user.id, conversationId)))
+    return { ok: false, error: "You're not part of this conversation." };
 
   // Suspended accounts can't send messages.
   const { data: me } = await supabase
@@ -326,6 +350,10 @@ export async function sendChatAttachment(
   if (!user) return { ok: false, error: "You're not signed in." };
 
   if (!attachmentUrl) return { ok: false, error: "No file to send." };
+
+  // Authorization: only a participant of this conversation may post to it.
+  if (!(await isConversationMember(supabase, user.id, conversationId)))
+    return { ok: false, error: "You're not part of this conversation." };
 
   const { data: me } = await supabase
     .from("profiles")

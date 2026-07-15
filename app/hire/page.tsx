@@ -65,7 +65,7 @@ export default function HirePage() {
           reviews completed.
         </p>
         <Link
-          href="/register/client"
+          href="/freelancers"
           className="inline-block mt-7 bg-primary text-primary-foreground px-8 py-3 rounded-full font-semibold hover:opacity-90"
         >
           Browse freelancers
@@ -134,7 +134,7 @@ export default function HirePage() {
           {MARKETS.map((m) => (
             <Link
               key={m}
-              href="/register/client"
+              href="/freelancers"
               className="text-neutral-700 hover:text-primary hover:underline"
             >
               Freelancers in {m}

@@ -234,7 +234,14 @@ export function ChatThread({
     if (!content || sending || blocked || ended) return;
     setSending(true);
 
-    const res = await sendChatMessage(conversationId, content);
+    // .catch so a rejected action can't leave `sending` stuck true (which would
+    // permanently disable the composer until a page reload).
+    const res = await sendChatMessage(conversationId, content).catch(
+      (): Awaited<ReturnType<typeof sendChatMessage>> => ({
+        ok: false,
+        error: "Couldn't send your message. Please try again.",
+      })
+    );
 
     if (res.ok && res.message) {
       setText("");
@@ -317,6 +324,11 @@ export function ChatThread({
       conversationId,
       pub.publicUrl,
       file.name
+    ).catch(
+      (): Awaited<ReturnType<typeof sendChatAttachment>> => ({
+        ok: false,
+        error: "Couldn't send the file. Please try again.",
+      })
     );
     setUploading(false);
 

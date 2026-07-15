@@ -20,6 +20,25 @@ export async function submitReview(
     redirect("/login");
   }
 
+  // Authorization: the reviewer must be a party to THIS contract, and the
+  // reviewee must be the counterparty. Without this, any signed-in user could
+  // post reviews against any freelancer/client (reputation/JSS sabotage) by
+  // supplying an arbitrary contractId + victim revieweeId.
+  const { data: contract } = await supabase
+    .from("contracts")
+    .select("client_id, freelancer_id")
+    .eq("id", contractId)
+    .maybeSingle();
+  const parties = [contract?.client_id, contract?.freelancer_id];
+  if (
+    !contract ||
+    !parties.includes(user.id) ||
+    !parties.includes(revieweeId) ||
+    user.id === revieweeId
+  ) {
+    redirect(`/contracts/${contractId}`);
+  }
+
   const rating = Number(formData.get("rating"));
   const comment = (formData.get("comment") as string) || null;
 

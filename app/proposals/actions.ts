@@ -100,6 +100,10 @@ export async function updateProposal(
 
 export async function hireFreelancer(proposalId: string) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const { data: proposal } = await supabase
     .from("proposals")
@@ -109,10 +113,20 @@ export async function hireFreelancer(proposalId: string) {
 
   if (!proposal) return;
 
+  // Authorization: only the client who OWNS the job may hire, and only a live
+  // (pending/shortlisted) proposal can be accepted. Without this, anyone could
+  // POST an arbitrary proposalId and force-create a binding contract between
+  // two unrelated parties.
+  if (proposal.jobs?.client_id !== user.id) redirect("/dashboard");
+  if (!["pending", "shortlisted"].includes(proposal.status)) {
+    redirect(`/jobs/${proposal.job_id}?tab=proposals`);
+  }
+
   await supabase
     .from("proposals")
     .update({ status: "accepted" })
-    .eq("id", proposalId);
+    .eq("id", proposalId)
+    .eq("status", proposal.status); // no-op if it changed under us (double-hire race)
 
   const { data: contractData } = await supabase
     .from("contracts")
@@ -340,12 +354,24 @@ export async function markJobProposalsViewed(jobId: string) {
 
 export async function completeContract(contractId: string) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const { data: contract } = await supabase
     .from("contracts")
-    .select("client_id, freelancer_id, title")
+    .select("client_id, freelancer_id, title, status")
     .eq("id", contractId)
     .single();
+
+  // Authorization: only a party to the contract may complete it, and only from
+  // an active state. Prevents anyone from marking strangers' contracts complete
+  // (integrity/health-score tampering) by POSTing an arbitrary contractId.
+  if (!contract) redirect("/dashboard");
+  if (contract.client_id !== user.id && contract.freelancer_id !== user.id) {
+    redirect("/dashboard");
+  }
 
   await supabase
     .from("contracts")
@@ -353,7 +379,8 @@ export async function completeContract(contractId: string) {
       status: "completed",
       end_date: new Date().toISOString(),
     })
-    .eq("id", contractId);
+    .eq("id", contractId)
+    .in("status", ["active", "in_progress"]);
 
   if (contract) {
     const msg = `The contract "${contract.title}" has been completed.`;
