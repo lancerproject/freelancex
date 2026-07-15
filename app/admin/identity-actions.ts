@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase-server";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { notify } from "@/lib/notify";
 import { recalcHealth } from "@/lib/health";
 import { revalidatePath } from "next/cache";
@@ -27,7 +28,11 @@ async function ensureAdmin() {
 export async function approveIdentity(userId: string) {
   const { supabase } = await ensureAdmin();
 
-  await supabase
+  // id_verified is a privileged column (DB-trigger protected). Admins write it
+  // through the service-role client — which also bypasses the owner-scoped RLS
+  // that would otherwise silently block an admin updating another user's row.
+  const admin = createAdminClient();
+  await admin
     .from("profiles")
     .update({
       id_verified: true,
@@ -70,7 +75,8 @@ export async function rejectIdentity(userId: string, formData: FormData) {
       ? custom || "Your documents couldn't be verified. Please resubmit."
       : reason || "The documents were unclear or didn't match the account details.";
 
-  await supabase
+  const admin = createAdminClient();
+  await admin
     .from("profiles")
     .update({
       id_verified: false,

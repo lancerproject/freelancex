@@ -1,4 +1,5 @@
 import { notify } from "./notify";
+import { createAdminClient } from "./supabase-admin";
 
 // Xwork keeps conversations and payments on-platform so payment protection and
 // support actually work. This module detects attempts to move off-platform
@@ -265,6 +266,11 @@ export async function recordWarning(
 
   const next = (profile?.warnings ?? 0) + 1;
 
+  // warnings/suspended/account_status are privileged columns (a DB trigger
+  // blocks user-client writes so nobody can clear their own warnings). Write
+  // them through the service-role client.
+  const admin = createAdminClient();
+
   // Account health: every blocked attempt is a recorded violation.
   //   payment → soliciting_outside_platform (critical), contact → contact_info_shared.
   // Best-effort — a health hiccup must never stop the block/warning itself.
@@ -288,7 +294,7 @@ export async function recordWarning(
   if (next >= WARNING_LIMIT) {
     const suspensionReason =
       `Suspended after ${WARNING_LIMIT} policy warnings for attempting to share contact details or arrange payment off Xwork.`;
-    await supabase
+    await admin
       .from("profiles")
       .update({
         warnings: next,
@@ -324,7 +330,7 @@ export async function recordWarning(
     return { warnings: next, suspended: true, justSuspended: true };
   }
 
-  await supabase.from("profiles").update({ warnings: next }).eq("id", userId);
+  await admin.from("profiles").update({ warnings: next }).eq("id", userId);
 
   await notify(
     supabase,

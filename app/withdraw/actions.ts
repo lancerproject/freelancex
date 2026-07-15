@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase-server";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { notify } from "@/lib/notify";
 import { revalidatePath } from "next/cache";
 import { COUNTRIES } from "@/lib/countries";
@@ -303,7 +304,12 @@ export async function requestWithdrawal(
     return { ok: false, error: "That's more than your available balance." };
   }
 
-  const { error } = await supabase.from("withdrawals").insert({
+  // Insert through the service-role client so the user-facing INSERT policy on
+  // `withdrawals` can be removed — that policy let anyone POST an arbitrary
+  // amount straight to PostgREST, bypassing every balance/verification check
+  // above. Now the ONLY way to create a withdrawal is through this guarded path.
+  const admin = createAdminClient();
+  const { error } = await admin.from("withdrawals").insert({
     user_id: user.id,
     method_id: method.id,
     method_label: method.label,

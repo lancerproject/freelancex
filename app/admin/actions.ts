@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase-server";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { notify } from "@/lib/notify";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -28,7 +29,11 @@ export async function adminSuspendUser(userId: string, formData: FormData) {
     (formData.get("reason") as string)?.trim() ||
     "Suspended by Xwork Trust & Safety for violating our terms.";
 
-  await supabase
+  // suspended/account_status are privileged, DB-trigger-protected columns; the
+  // admin writes them through the service-role client (which also bypasses the
+  // owner-scoped RLS that would block updating another user's row).
+  const admin = createAdminClient();
+  await admin
     .from("profiles")
     .update({
       suspended: true,
@@ -71,7 +76,8 @@ export async function adminSuspendUser(userId: string, formData: FormData) {
 export async function adminReinstateUser(userId: string) {
   const { supabase } = await ensureAdmin();
 
-  await supabase
+  const admin = createAdminClient();
+  await admin
     .from("profiles")
     .update({
       suspended: false,
@@ -113,8 +119,9 @@ export async function adminReinstateUser(userId: string) {
 
 // Clear warnings without changing suspension state (e.g. an accepted appeal).
 export async function adminClearWarnings(userId: string) {
-  const { supabase } = await ensureAdmin();
-  await supabase.from("profiles").update({ warnings: 0 }).eq("id", userId);
+  await ensureAdmin();
+  const admin = createAdminClient();
+  await admin.from("profiles").update({ warnings: 0 }).eq("id", userId);
   revalidatePath("/admin");
   redirect("/admin");
 }

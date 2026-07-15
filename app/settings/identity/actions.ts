@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase-server";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { notify } from "@/lib/notify";
 import { identityFingerprint } from "@/lib/identity-fingerprint";
@@ -133,7 +134,11 @@ export async function verifyIdentity(formData: FormData): Promise<{
   const AUTO_VERIFY_MIN = 55;
   const needsReview = !faceScore || faceScore < AUTO_VERIFY_MIN;
 
-  const { error } = await supabase
+  // id_verified is a privileged column (protected by a DB trigger so users
+  // can't self-verify) — write it via the service-role client. Still scoped to
+  // the authenticated user's own row.
+  const admin = createAdminClient();
+  const { error } = await admin
     .from("profiles")
     .update({
       id_verified: !needsReview,
