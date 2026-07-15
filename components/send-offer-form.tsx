@@ -471,63 +471,113 @@ export function SendOfferForm({
         >
           ← Back to offer details
         </button>
-        <h2 className="text-2xl font-bold text-foreground">
-          Hire {freelancerName}
-        </h2>
+        {/* Hero */}
+        <div className="rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-6 lg:p-8">
+          <div className="flex items-center gap-4">
+            <span className="text-4xl">🤝</span>
+            <div>
+              <h2 className="text-2xl lg:text-3xl font-bold text-foreground">
+                Review &amp; send your offer
+              </h2>
+              <p className="text-muted-foreground mt-1">
+                You&apos;re about to hire{" "}
+                <span className="font-medium text-foreground">
+                  {freelancerName}
+                </span>
+                {title ? (
+                  <>
+                    {" "}
+                    for{" "}
+                    <span className="font-medium text-foreground">
+                      &ldquo;{title}&rdquo;
+                    </span>
+                  </>
+                ) : null}
+                .
+              </p>
+            </div>
+          </div>
+        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
           {/* Billing method (comes online with the payment gateway) */}
-          <div className="rounded-2xl border border-border bg-card p-6">
-            <h3 className="text-lg font-bold text-foreground">
-              Add a billing method
+          <div className="rounded-2xl border border-border bg-card p-6 lg:p-7">
+            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+              💳 Billing method
             </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Card and PayPal payments become available once Xwork payments go
-              live. For now, send the offer — you&apos;ll fund the milestone in
-              escrow after {freelancerName} accepts.
+              Card and PayPal payments come online once Xwork payments go live.
+              For now, send the offer — you&apos;ll fund the milestone in escrow
+              after {freelancerName} accepts.
             </p>
-            <div className="mt-4 space-y-2 opacity-60">
-              <div className="flex items-center gap-2 border border-border rounded-lg px-3 py-2.5 text-sm">
-                <input type="radio" disabled className="accent-primary" />
-                💳 Debit or credit card
+            <div className="mt-5 space-y-3">
+              <div className="flex items-center justify-between border border-border rounded-xl px-4 py-3.5 text-sm opacity-70">
+                <span className="flex items-center gap-2">
+                  💳 Debit or credit card
+                </span>
+                <span className="text-[11px] rounded-full bg-secondary px-2.5 py-0.5 text-muted-foreground">
+                  Coming soon
+                </span>
               </div>
-              <div className="flex items-center gap-2 border border-border rounded-lg px-3 py-2.5 text-sm">
-                <input type="radio" disabled className="accent-primary" />
-                🅿️ PayPal
+              <div className="flex items-center justify-between border border-border rounded-xl px-4 py-3.5 text-sm opacity-70">
+                <span className="flex items-center gap-2">🅿️ PayPal</span>
+                <span className="text-[11px] rounded-full bg-secondary px-2.5 py-0.5 text-muted-foreground">
+                  Coming soon
+                </span>
               </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-3 gap-3 text-center">
+              {[
+                ["🛡️", "Escrow protected"],
+                ["↩️", "Refunded if unapproved"],
+                ["🔒", "Secure payments"],
+              ].map(([icon, label]) => (
+                <div key={label} className="rounded-xl bg-secondary/50 p-3">
+                  <div className="text-xl">{icon}</div>
+                  <p className="text-xs text-muted-foreground mt-1">{label}</p>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Order summary */}
-          <aside className="rounded-2xl border border-border bg-card p-6">
-            <p className="font-semibold text-foreground">
-              Hire {freelancerName}
-              {title ? ` for: ${title}` : ""}
+          {/* Order summary — elevated */}
+          <aside className="rounded-2xl border border-border bg-card p-6 shadow-lg lg:sticky lg:top-6">
+            <p className="font-semibold text-foreground text-lg leading-snug">
+              {title ? title : `Hire ${freelancerName}`}
             </p>
-            <div className="border-t border-border mt-4 pt-4 space-y-2 text-sm">
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Offer to {freelancerName}
+            </p>
+            <div className="border-t border-border mt-4 pt-4 space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span className="text-foreground">{money(amtNum)}</span>
+                <span className="text-foreground font-medium">
+                  {money(amtNum)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">
                   Xwork service fee (2%)
                 </span>
-                <span className="text-foreground">{money(fee)}</span>
+                <span className="text-foreground font-medium">{money(fee)}</span>
               </div>
-              <div className="flex justify-between font-semibold pt-2 border-t border-border">
+              <div className="flex justify-between text-base font-bold pt-3 border-t border-border">
                 <span className="text-foreground">Estimated total</span>
-                <span className="text-foreground">{money(total)}</span>
+                <span className="text-primary">{money(total)}</span>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-3">
-              🛡️ Xwork Payment Protection — funds are held in escrow and released
-              only when you approve the work.
-            </p>
+            <div className="mt-4 rounded-xl bg-primary/5 border border-primary/20 p-3 text-xs text-muted-foreground flex gap-2">
+              <span>🛡️</span>
+              <span>
+                Xwork Payment Protection — funds are held in escrow and released
+                only when you approve the work.
+              </span>
+            </div>
             <button
               type="submit"
               disabled={!valid || busy}
-              className="mt-4 w-full bg-primary text-primary-foreground rounded-full px-6 py-2.5 font-semibold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="mt-4 w-full bg-primary text-primary-foreground rounded-full px-6 py-3.5 text-base font-semibold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {busy ? "Sending…" : "Send offer"}
             </button>

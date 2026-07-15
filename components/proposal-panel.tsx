@@ -132,8 +132,6 @@ export function ProposalPanel({
           {isPending ? (
             <Link
               href={`/offer/new?job=${data.jobId}&proposal=${data.proposalId}`}
-              target="_blank"
-              rel="noopener noreferrer"
               className="bg-primary text-primary-foreground px-10 py-2.5 rounded-full font-semibold hover:opacity-90"
             >
               Hire

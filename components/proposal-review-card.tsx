@@ -135,8 +135,6 @@ export function ProposalReviewCard({
           {isPending ? (
             <Link
               href={`/offer/new?job=${jobId}&proposal=${p.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
               className="bg-primary text-primary-foreground px-5 py-1.5 rounded-full text-sm font-semibold hover:opacity-90"
             >
               Hire
@@ -184,8 +182,6 @@ export function ProposalReviewCard({
         <div className="mt-3">
           <Link
             href={`/offer/new?job=${jobId}&proposal=${p.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
             className="text-primary hover:underline text-sm font-medium"
           >
             Send offer

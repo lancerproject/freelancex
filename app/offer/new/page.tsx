@@ -115,9 +115,11 @@ export default async function NewOfferPage({
       >
         ← Back
       </Link>
-      <h1 className="text-3xl font-bold text-foreground mt-3 mb-6">
-        Send an offer
-      </h1>
+      <h1 className="text-4xl font-bold text-foreground mt-3">Send an offer</h1>
+      <p className="text-muted-foreground mt-2 mb-8">
+        Set the terms, then send your offer to {freelancerName}. You only fund
+        the work in escrow after they accept — no charge until then.
+      </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 items-start">
         <div>

@@ -243,6 +243,65 @@ export async function quickMessageOnJob(
   return { ...res, convoId };
 }
 
+// Load the existing conversation with a freelancer on a job (for the client's
+// quick-message popup, so it opens as a mini-inbox showing prior messages
+// instead of a blank box). Returns [] if there's no conversation yet.
+export async function getQuickThread(
+  jobId: string,
+  freelancerId: string
+): Promise<{
+  convoId: string | null;
+  messages: {
+    id: string;
+    content: string;
+    mine: boolean;
+    system: boolean;
+    created_at: string;
+  }[];
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { convoId: null, messages: [] };
+
+  const { data: job } = await supabase
+    .from("jobs")
+    .select("client_id")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (!job || job.client_id !== user.id) return { convoId: null, messages: [] };
+
+  const { data: convo } = await supabase
+    .from("conversations")
+    .select("id")
+    .eq("job_id", jobId)
+    .or(
+      `and(participant_1.eq.${user.id},participant_2.eq.${freelancerId}),and(participant_1.eq.${freelancerId},participant_2.eq.${user.id})`
+    )
+    .limit(1)
+    .maybeSingle();
+  if (!convo) return { convoId: null, messages: [] };
+
+  const { data: msgs } = await supabase
+    .from("messages")
+    .select("id, sender_id, content, created_at, kind")
+    .eq("conversation_id", convo.id)
+    .order("created_at", { ascending: true })
+    .limit(50);
+
+  return {
+    convoId: convo.id as string,
+    messages: (msgs ?? []).map((m) => ({
+      id: m.id as string,
+      content: (m.content as string) || "",
+      mine: m.sender_id === user.id,
+      system: m.kind === "system",
+      created_at: m.created_at as string,
+    })),
+  };
+}
+
 // Sends a file attachment as a message. The file is already uploaded to storage
 // by the client; here we just record the message row (with moderation skipped —
 // there's no text to scan — but suspension and rate limits still apply).

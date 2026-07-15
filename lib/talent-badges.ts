@@ -170,7 +170,8 @@ export function talentBadgeMeta(badge: string | null | undefined): {
         key: "rising_talent",
         label: "Rising Talent",
         icon: "🌱",
-        className: "bg-amber-500/10 text-amber-600",
+        // Green — a promising newcomer.
+        className: "bg-green-500/10 text-green-600 border border-green-500/30",
         title: "One of the most promising new freelancers on Xwork",
       };
     case "top_rated":
@@ -178,7 +179,8 @@ export function talentBadgeMeta(badge: string | null | undefined): {
         key: "top_rated",
         label: "Top Rated",
         icon: "🏆",
-        className: "bg-primary/10 text-primary",
+        // Blue — a proven, consistently-excellent freelancer.
+        className: "bg-blue-500/10 text-blue-600 border border-blue-500/30",
         title:
           "Consistently excellent client feedback — among the top freelancers on Xwork",
       };
@@ -187,7 +189,8 @@ export function talentBadgeMeta(badge: string | null | undefined): {
         key: "top_rated_plus",
         label: "Top Rated Plus",
         icon: "💎",
-        className: "bg-primary/15 text-primary border border-primary/30",
+        // Baby pink — the very top tier.
+        className: "bg-pink-400/15 text-pink-500 border border-pink-300/50",
         title:
           "Proven success on large contracts — the very top tier of Xwork talent",
       };
