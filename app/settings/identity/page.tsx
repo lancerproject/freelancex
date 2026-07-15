@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 import { IdentityVerification } from "@/components/identity-verification";
+import { PhoneVerifyQR } from "@/components/phone-verify-qr";
 
 export const metadata = { title: "Identity verification | Xwork" };
 
@@ -180,9 +181,15 @@ export default async function IdentityVerificationPage() {
         </div>
       )}
 
-      {/* Verification flow — only for an unverified freelancer not in review */}
+      {/* Verification flow — only for an unverified freelancer not in review.
+          Phone hand-off (QR) is offered first since phone cameras capture IDs
+          far better than laptop webcams; the on-computer camera stays as a
+          fallback below it. */}
       {isFreelancer && !verified && !underReview && (
-        <IdentityVerification profilePhoto={profile?.avatar_url ?? null} />
+        <>
+          <PhoneVerifyQR />
+          <IdentityVerification profilePhoto={profile?.avatar_url ?? null} />
+        </>
       )}
 
       {!isFreelancer && !verified && (
