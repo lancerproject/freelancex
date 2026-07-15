@@ -65,6 +65,40 @@ const TICKET_TOOL = {
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
+// Free provider: Groq (open Llama 3.3). Returns null on any failure so the
+// caller falls through to the next provider. Uses the same Casio persona; a
+// self-contained token signals when to offer a support ticket (Groq has no
+// tool-calling here, so we parse a sentinel instead).
+const OFFER_TOKEN = "[[OFFER_TICKET]]";
+async function callGroq(
+  apiKey: string,
+  history: ChatMessage[]
+): Promise<{ reply: string; offerTicket: boolean } | null> {
+  const system =
+    SYSTEM_PROMPT +
+    `\n\nYou cannot open tickets directly here. When the user needs a human, asks for a ticket, raises something account-specific you can't verify, or seems stuck, put this token on its own final line: ${OFFER_TOKEN}. Never mention or explain the token — just place it when a handoff fits, and omit it when your answer fully resolves things.`;
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+      temperature: 0.4,
+      max_tokens: 700,
+      messages: [{ role: "system", content: system }, ...history],
+    }),
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  const raw = String(data?.choices?.[0]?.message?.content ?? "").trim();
+  if (!raw) return null;
+  const offerTicket = raw.includes(OFFER_TOKEN);
+  const reply = raw.replace(OFFER_TOKEN, "").trim();
+  return { reply: reply || "Happy to help — could you tell me a bit more?", offerTicket };
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const {
@@ -96,6 +130,15 @@ export async function POST(request: NextRequest) {
   }
 
   const lastUserMessage = history[history.length - 1].content;
+
+  // Provider order: free Groq/Llama first (no cost — the default), then
+  // Anthropic if configured, then the built-in offline answerer. Casio stays
+  // useful whether the platform has a paid key, a free key, or no key at all.
+  const groqKey = process.env.GROQ_API_KEY;
+  if (groqKey) {
+    const g = await callGroq(groqKey, history).catch(() => null);
+    if (g) return NextResponse.json(g);
+  }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
