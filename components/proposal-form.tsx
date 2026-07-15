@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { getBrowserSupabase } from "@/lib/supabase-browser";
 import { submitProposal } from "@/app/(dashboard)/jobs/[id]/proposal/actions";
 import { DURATIONS } from "@/lib/categories";
@@ -26,6 +26,13 @@ export function ProposalForm({
   plan?: string;
 }) {
   const supabase = getBrowserSupabase();
+
+  // "3 things you need to know" agreement gate (Upwork-style): clicking
+  // "Submit proposal" opens this modal; the proposal is only submitted after
+  // the freelancer ticks "Yes, I understand" and clicks Continue.
+  const formRef = useRef<HTMLFormElement>(null);
+  const [showAgree, setShowAgree] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
   const [payType, setPayType] = useState<"milestone" | "project">("project");
   const [bid, setBid] = useState("");
@@ -93,7 +100,11 @@ export function ProposalForm({
     "rounded-2xl border border-border bg-card p-6 lg:p-8";
 
   return (
-    <form action={submitProposal.bind(null, jobId)} className="space-y-6">
+    <form
+      ref={formRef}
+      action={submitProposal.bind(null, jobId)}
+      className="space-y-6"
+    >
       {/* Values carried from component state */}
       <input type="hidden" name="payment_type" value={payType} />
       <input type="hidden" name="milestones" value={JSON.stringify(cleanMilestones)} />
@@ -329,8 +340,12 @@ export function ProposalForm({
       {/* ---------------- Submit ---------------- */}
       <div className="flex items-center gap-4">
         <button
-          type="submit"
+          type="button"
           disabled={!canSubmit}
+          onClick={() => {
+            setAgreed(false);
+            setShowAgree(true);
+          }}
           className="bg-primary text-primary-foreground px-8 py-3 rounded-full font-semibold hover:opacity-90 disabled:opacity-40"
         >
           Submit proposal
@@ -339,6 +354,106 @@ export function ProposalForm({
           Applying is <span className="text-foreground font-medium">free</span>
         </span>
       </div>
+
+      {/* ---------------- "3 things you need to know" agreement ---------------- */}
+      {showAgree && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowAgree(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-card border border-border p-7 lg:p-9 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setShowAgree(false)}
+              aria-label="Close"
+              className="absolute top-5 right-5 text-muted-foreground hover:text-foreground text-2xl leading-none"
+            >
+              ✕
+            </button>
+
+            <h2 className="text-2xl lg:text-3xl font-bold text-foreground pr-8">
+              3 things you need to know
+            </h2>
+            <p className="text-muted-foreground mt-3">
+              You&apos;re submitting a proposal for a fixed-price project. While
+              the majority of Xwork projects are completed successfully, please
+              keep a few things in mind:
+            </p>
+
+            <ol className="mt-6 space-y-5">
+              {[
+                {
+                  t: "Fixed-price projects have Dispute Assistance",
+                  d: "Before you start, you and the client agree on the requirements, budget and milestones. The client funds the project up front, and the money for each milestone is held securely in escrow.",
+                },
+                {
+                  t: "Funds are released when the client approves the work",
+                  d: "As milestones are completed, the client can either approve the work or request changes. Clients can also ask you to approve the return of funds being held.",
+                },
+                {
+                  t: "Xwork offers mediation services",
+                  d: "If you do the work and the client refuses to pay, Xwork can help mediate the dispute.",
+                },
+              ].map((item, i) => (
+                <li key={i} className="flex gap-3">
+                  <span className="text-muted-foreground font-medium">
+                    {i + 1}.
+                  </span>
+                  <div>
+                    <p className="font-semibold text-foreground">{item.t}</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {item.d}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+
+            <p className="text-sm text-foreground mt-6">
+              Please note: only funds deposited for an active milestone are
+              covered by Dispute Assistance.
+            </p>
+
+            <label className="flex items-center gap-3 mt-6 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="h-5 w-5 accent-primary"
+              />
+              <span className="font-medium text-foreground">
+                Yes, I understand.
+              </span>
+            </label>
+
+            <div className="flex items-center justify-end gap-4 mt-8">
+              <button
+                type="button"
+                onClick={() => setShowAgree(false)}
+                className="text-foreground font-medium px-4 py-2 hover:underline"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!agreed}
+                onClick={() => {
+                  setShowAgree(false);
+                  formRef.current?.requestSubmit();
+                }}
+                className="bg-primary text-primary-foreground rounded-full px-8 py-2.5 font-semibold hover:opacity-90 disabled:opacity-40"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
