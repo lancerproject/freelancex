@@ -5,6 +5,19 @@ import { redirect } from "next/navigation";
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25 MB
 
+// Deliverables only — no executables/scripts/HTML (HTML on the storage origin
+// could be used for phishing). Allowlist of safe extensions.
+const ALLOWED_EXT = new Set([
+  "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "rtf", "csv", "md",
+  "png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "tif", "tiff", "heic",
+  "zip", "rar", "7z", "psd", "ai", "fig", "sketch", "xd", "eps",
+  "mp3", "wav", "ogg", "mp4", "mov", "webm", "m4a", "json", "xml",
+]);
+function extAllowed(name: string): boolean {
+  const ext = (name.split(".").pop() || "").toLowerCase();
+  return ALLOWED_EXT.has(ext);
+}
+
 // Only a party to the contract may attach/remove its files.
 async function assertContractParty(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,6 +52,8 @@ export async function uploadFile(contractId: string, formData: FormData) {
 
   // Size guard (storage-exhaustion / cost DoS).
   if (file.size > MAX_FILE_BYTES) redirect(`/contracts/${contractId}`);
+  // Type guard — reject executables/scripts/HTML.
+  if (!extAllowed(file.name || "")) redirect(`/contracts/${contractId}`);
 
   // Sanitize the filename so it can't manipulate the storage key (path
   // traversal via "../"): strip directory separators, keep a safe basename.
