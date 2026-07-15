@@ -46,8 +46,8 @@ begin
   loop
     execute format('drop policy if exists "read_all_%1$s" on public.%1$s;', t);
     execute format('drop policy if exists "write_auth_%1$s" on public.%1$s;', t);
-    execute format('create policy "read_all_%1$s" on public.%1$s for select using (true);', t);
-    execute format('create policy "write_auth_%1$s" on public.%1$s for all to authenticated using (true) with check (true);', t);
+    -- SECURITY: blanket read_all/write_auth removed — they nullify per-user RLS.
+    -- Per-user policies live in migrations/rls-security.sql + rls-hardening.sql.
   end loop;
 end $$;
 

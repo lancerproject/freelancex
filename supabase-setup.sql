@@ -166,8 +166,13 @@ alter table public.messages        enable row level security;
 alter table public.notifications   enable row level security;
 alter table public.contract_files  enable row level security;
 
--- Anyone authenticated can read everything (marketplace is browsable).
--- Writes are allowed for authenticated users.
+-- SECURITY: the old blanket "read_all_*" / "write_auth_* (for all to
+-- authenticated using true)" policies are a cross-tenant hole — Postgres
+-- OR-combines permissive policies, so they nullify every per-user policy and
+-- let any authenticated user read/write ANY row (and anon world-read). They are
+-- REMOVED here so re-running this setup script can never re-introduce them.
+-- The canonical, per-user RLS lives in migrations/rls-security.sql +
+-- migrations/rls-hardening.sql — apply those, not blanket grants.
 do $$
 declare t text;
 begin
@@ -178,14 +183,6 @@ begin
   loop
     execute format('drop policy if exists "read_all_%1$s"  on public.%1$s;', t);
     execute format('drop policy if exists "write_auth_%1$s" on public.%1$s;', t);
-
-    execute format(
-      'create policy "read_all_%1$s" on public.%1$s
-         for select using (true);', t);
-
-    execute format(
-      'create policy "write_auth_%1$s" on public.%1$s
-         for all to authenticated using (true) with check (true);', t);
   end loop;
 end $$;
 

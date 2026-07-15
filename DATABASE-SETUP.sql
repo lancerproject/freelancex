@@ -180,16 +180,11 @@ begin
     'conversations','messages','notifications','contract_files'
   ]
   loop
+    -- SECURITY: blanket policies removed (they OR-combine and nullify per-user
+    -- RLS). Canonical per-user policies live in migrations/rls-security.sql +
+    -- rls-hardening.sql. Drops kept so a re-run cleans up any legacy policy.
     execute format('drop policy if exists "read_all_%1$s"  on public.%1$s;', t);
     execute format('drop policy if exists "write_auth_%1$s" on public.%1$s;', t);
-
-    execute format(
-      'create policy "read_all_%1$s" on public.%1$s
-         for select using (true);', t);
-
-    execute format(
-      'create policy "write_auth_%1$s" on public.%1$s
-         for all to authenticated using (true) with check (true);', t);
   end loop;
 end $$;
 
@@ -283,8 +278,7 @@ begin
   loop
     execute format('drop policy if exists "read_all_%1$s"  on public.%1$s;', t);
     execute format('drop policy if exists "write_auth_%1$s" on public.%1$s;', t);
-    execute format('create policy "read_all_%1$s"  on public.%1$s for select using (true);', t);
-    execute format('create policy "write_auth_%1$s" on public.%1$s for all to authenticated using (true) with check (true);', t);
+    -- blanket create removed (see note above); per-user RLS in migrations/.
   end loop;
 end $$;
 
