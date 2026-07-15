@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase-server";
 import { notify } from "@/lib/notify";
+import { recalcHealth } from "@/lib/health";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -45,15 +46,29 @@ export async function approveIdentity(userId: string) {
     "Our team reviewed your documents — your identity is verified! You're all set to apply and get paid.",
     "/profile"
   );
+
+  // Recalculate health now so the +10 "Identity verified" boost applies
+  // immediately (and the "not verified" penalty clears), rather than on the
+  // user's next health-page view.
+  try {
+    await recalcHealth(userId, "identity_verified");
+  } catch {
+    /* best-effort — health also recalcs lazily on view */
+  }
+
   revalidatePath("/admin/identity");
   redirect("/admin/identity");
 }
 
 export async function rejectIdentity(userId: string, formData: FormData) {
   const { supabase } = await ensureAdmin();
+  // Reason comes from a fixed dropdown; "Other" carries a free-text detail.
+  const reason = ((formData.get("reason") as string) || "").trim();
+  const custom = ((formData.get("custom_reason") as string) || "").trim();
   const note =
-    ((formData.get("note") as string) || "").trim() ||
-    "The documents were unclear or didn't match the account details.";
+    reason === "Other"
+      ? custom || "Your documents couldn't be verified. Please resubmit."
+      : reason || "The documents were unclear or didn't match the account details.";
 
   await supabase
     .from("profiles")

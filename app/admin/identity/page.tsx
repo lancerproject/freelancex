@@ -142,11 +142,34 @@ export default async function AdminIdentityPage() {
                   </form>
                   <form
                     action={rejectIdentity.bind(null, p.id)}
-                    className="flex items-center gap-2 flex-1 min-w-[280px]"
+                    className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 min-w-[280px]"
                   >
+                    <select
+                      name="reason"
+                      required
+                      defaultValue=""
+                      className={input}
+                    >
+                      <option value="" disabled>
+                        Select a decline reason…
+                      </option>
+                      <option value="ID card not clearly visible">
+                        ID card not clearly visible
+                      </option>
+                      <option value="ID card appears expired">
+                        ID card appears expired
+                      </option>
+                      <option value="ID does not match selfie">
+                        ID does not match selfie
+                      </option>
+                      <option value="Suspected fraudulent document">
+                        Suspected fraudulent document
+                      </option>
+                      <option value="Other">Other (add details)</option>
+                    </select>
                     <input
-                      name="note"
-                      placeholder="Reason shown to the user (optional)"
+                      name="custom_reason"
+                      placeholder="If Other, add details"
                       className={input}
                     />
                     <button className="border border-destructive/50 text-destructive rounded-full px-5 py-2 text-sm font-medium hover:bg-destructive/10 shrink-0">
