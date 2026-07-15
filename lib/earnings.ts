@@ -123,7 +123,23 @@ export async function getFreelancerEarnings(
     (t: number, r: { amount?: number | null }) => t + (Number(r.amount) || 0), 0
   );
 
-  const available = Math.max(0, round2(availableNet - balanceSpent - withdrawn));
+  // Accepted refunds return money to the client, so they reduce the
+  // freelancer's spendable balance (service-role read; refund_requests is
+  // RLS-locked). Without this, a refunded freelancer could still withdraw the
+  // returned funds.
+  const { data: refundRows } = await admin
+    .from("refund_requests")
+    .select("amount, contracts!inner ( freelancer_id )")
+    .eq("status", "accepted")
+    .eq("contracts.freelancer_id", userId);
+  const refunded = (refundRows ?? []).reduce(
+    (t: number, r: { amount?: number | null }) => t + (Number(r.amount) || 0), 0
+  );
+
+  const available = Math.max(
+    0,
+    round2(availableNet - balanceSpent - withdrawn - refunded)
+  );
 
   return {
     available,

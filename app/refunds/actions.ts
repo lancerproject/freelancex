@@ -51,13 +51,23 @@ export async function requestRefund(contractId: string, formData: FormData) {
     redirect(`${back}?error=reason`);
   }
 
-  // Can't ask back more than was actually paid on this contract.
+  // Can't ask back more than was actually paid on this contract. Money counts
+  // as "paid" once it's released to the freelancer — via the escrow flow
+  // (escrow_status PENDING/AVAILABLE/WITHDRAWN) OR the legacy payment_status.
   const { data: ms } = await supabase
     .from("milestones")
-    .select("amount, payment_status")
-    .eq("contract_id", contractId)
-    .eq("payment_status", "released");
-  const paid = (ms ?? []).reduce((t, m) => t + (Number(m.amount) || 0), 0);
+    .select("amount, payment_status, escrow_status")
+    .eq("contract_id", contractId);
+  const releasedStates = new Set(["PENDING", "AVAILABLE", "WITHDRAWN"]);
+  const paid = (ms ?? []).reduce(
+    (t, m) =>
+      t +
+      (m.payment_status === "released" ||
+      releasedStates.has(m.escrow_status as string)
+        ? Number(m.amount) || 0
+        : 0),
+    0
+  );
   if (amount > paid) {
     redirect(`${back}?error=paid`);
   }
