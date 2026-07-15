@@ -36,7 +36,6 @@ const CLIENT_MENUS: Menu[] = [
         heading: "Manage jobs and offers",
         items: [
           { label: "Job posts and proposals", href: "/my-jobs" },
-          { label: "Pending offers", href: "/offers" },
         ],
       },
       {

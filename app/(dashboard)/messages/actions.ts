@@ -290,6 +290,15 @@ export async function getQuickThread(
     .order("created_at", { ascending: true })
     .limit(50);
 
+  // Opening the popup counts as reading — clear the unread badge so it doesn't
+  // pop back on the next refresh.
+  await supabase
+    .from("messages")
+    .update({ read: true })
+    .eq("conversation_id", convo.id)
+    .neq("sender_id", user.id)
+    .eq("read", false);
+
   return {
     convoId: convo.id as string,
     messages: (msgs ?? []).map((m) => ({

@@ -30,7 +30,26 @@ export default async function AdminIdentityPage() {
     )
     .eq("id_review_status", "pending")
     .order("full_name");
-  const pending = rows ?? [];
+
+  // The ID images live in a PRIVATE bucket now — turn each stored path into a
+  // short-lived (1 hour) signed URL. Legacy submissions stored a full public
+  // URL (project-files bucket); pass those through unchanged.
+  const resolveImg = async (value: string | null): Promise<string | null> => {
+    if (!value) return null;
+    if (value.startsWith("http")) return value;
+    const { data } = await admin.storage
+      .from("id-verifications")
+      .createSignedUrl(value, 3600);
+    return data?.signedUrl ?? null;
+  };
+  const pending = await Promise.all(
+    (rows ?? []).map(async (p) => ({
+      ...p,
+      frontUrl: await resolveImg(p.id_doc_front),
+      backUrl: await resolveImg(p.id_doc_back),
+      selfieUrl: await resolveImg(p.id_selfie),
+    }))
+  );
 
   const input =
     "w-full bg-background border border-border text-foreground rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
@@ -88,9 +107,9 @@ export default async function AdminIdentityPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
                   {(
                     [
-                      ["ID — front", p.id_doc_front],
-                      ["ID — back", p.id_doc_back],
-                      ["Selfie", p.id_selfie],
+                      ["ID — front", p.frontUrl],
+                      ["ID — back", p.backUrl],
+                      ["Selfie", p.selfieUrl],
                     ] as const
                   ).map(([label, url]) => (
                     <div key={label}>

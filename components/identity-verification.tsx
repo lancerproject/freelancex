@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { uploadToStorage } from "@/app/(dashboard)/profile/upload-actions";
+import { uploadIdDoc } from "@/app/(dashboard)/profile/upload-actions";
 import { verifyIdentity } from "@/app/settings/identity/actions";
 import { COUNTRIES } from "@/lib/countries";
 
@@ -154,10 +154,12 @@ export function IdentityVerification({
     setBusy(`Saving ${label}…`);
     const fd = new FormData();
     fd.set("file", file);
-    const res = await uploadToStorage(fd);
+    const res = await uploadIdDoc(fd);
     setBusy("");
-    if (res.url) {
-      set({ url: res.url, preview });
+    if (res.path) {
+      // We store the private storage PATH (admins view via a signed URL). The
+      // on-screen preview + face match use the local blob, so this is fine.
+      set({ url: res.path, preview });
       return true;
     }
     setError(res.error || "Upload failed.");
