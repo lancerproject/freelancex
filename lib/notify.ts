@@ -1,5 +1,6 @@
 import { sendEmail } from "./email";
 import { isAllowed } from "./notification-prefs";
+import { createAdminClient } from "./supabase-admin";
 
 // Creates an in-app notification AND sends an email — each subject to the
 // recipient's notification preferences (Settings → Notifications). If prefs
@@ -38,7 +39,13 @@ export async function notify(
   // Messages inbox (with its own unread count), like Upwork. The email below
   // still goes out if the recipient allows message emails.
   if (type !== "message" && isAllowed(prefs, type, "inapp")) {
-    const { error } = await supabase.from("notifications").insert({
+    // Insert through the service-role client. A notification is frequently
+    // created FOR another user (e.g. "someone messaged you"), so this can't be
+    // owner-scoped — using the admin client lets us drop the permissive
+    // "anyone can insert" RLS policy (Security Advisor "RLS Policy Always True")
+    // while keeping cross-user notifications working and un-forgeable.
+    const admin = createAdminClient();
+    const { error } = await admin.from("notifications").insert({
       user_id: userId,
       type,
       title,
