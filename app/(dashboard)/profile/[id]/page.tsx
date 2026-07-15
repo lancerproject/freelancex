@@ -21,6 +21,9 @@ import { ListSection } from "@/components/list-section";
 import { SkillsEditor } from "@/components/skills-editor";
 import { COUNTRIES } from "@/lib/countries";
 import { CITIES } from "@/lib/cities";
+import { LANGUAGES } from "@/lib/languages";
+import { UNIVERSITIES } from "@/lib/universities";
+import { DEGREES } from "@/lib/degrees";
 import { LocationField } from "@/components/location-field";
 import { AvatarPhotoEdit } from "@/components/avatar-photo-edit";
 import { LocalTime } from "@/components/local-time";
@@ -642,7 +645,7 @@ export default async function PublicProfilePage({
             emptyText="Add the languages you speak."
             blank={{ language: "", proficiency: "" }}
             fields={[
-              { key: "language", label: "Language" },
+              { key: "language", label: "Language", type: "combo", options: LANGUAGES as unknown as string[] },
               {
                 key: "proficiency",
                 label: "Proficiency level",
@@ -690,8 +693,8 @@ export default async function PublicProfilePage({
             emptyText="Add your education."
             blank={{ school: "", degree: "", start_year: "", end_year: "" }}
             fields={[
-              { key: "school", label: "School" },
-              { key: "degree", label: "Degree / field of study" },
+              { key: "school", label: "School", type: "combo", options: UNIVERSITIES as unknown as string[] },
+              { key: "degree", label: "Degree / field of study", type: "combo", options: DEGREES as unknown as string[] },
               { key: "start_year", label: "Start year", type: "select", options: YEARS, half: true },
               { key: "end_year", label: "End year", type: "select", options: YEARS, half: true },
             ]}

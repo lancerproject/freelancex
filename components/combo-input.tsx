@@ -21,11 +21,15 @@ export function ComboInput({
 }) {
   const [open, setOpen] = useState(false);
   const q = value.trim().toLowerCase();
+  // When typing, filter. When the field is focused but empty, still show a
+  // starter list of suggestions so the user can see there ARE options to pick
+  // from (previously nothing showed until you typed, so it looked like there
+  // were no suggestions at all).
   const matches = q
     ? suggestions
         .filter((s) => s.toLowerCase().includes(q) && s.toLowerCase() !== q)
         .slice(0, 8)
-    : [];
+    : suggestions.slice(0, 8);
 
   const base =
     "w-full bg-background border border-border text-foreground rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
