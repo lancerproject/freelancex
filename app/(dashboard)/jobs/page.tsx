@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { FreelancerJobFeed } from "@/components/freelancer-job-feed";
 import { CATEGORIES } from "@/lib/categories";
@@ -22,6 +23,12 @@ export default async function JobsPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Browsing the job feed requires an account (like Upwork — job search is
+  // behind sign-in). A logged-out visitor who clicked a category/job on the
+  // marketing home page is sent to log in / sign up, not dropped into the
+  // freelancer feed. Individual job pages (/jobs/[id]) already require login.
+  if (!user) redirect("/login");
 
   let query = supabase
     .from("jobs")
