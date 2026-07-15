@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 // Set NEXT_PUBLIC_SITE_URL to your real domain in production (e.g.
 // https://xwork.com) so the sitemap emits absolute, crawlable URLs.
 const BASE =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "http://localhost:3000";
+  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://thexwork.com";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPaths = [
