@@ -136,18 +136,24 @@ export default async function PublicProfilePage({
     /* ignore */
   }
   const supabase = await createClient();
+  // Read the profile + embedded reviewer profiles through the service-role
+  // client (server-side only). This page is public, so a logged-out visitor
+  // would otherwise read the row as the `anon` role — once personal columns are
+  // revoked from `anon`, this server render still works and only ever passes
+  // public fields to the browser. (Reviewer email dropped from the embed too.)
+  const admin = createAdminClient();
 
-  const { data: profile } = await supabase
+  const { data: profile } = await admin
     .from("profiles")
     .select("*")
     .eq("id", id)
     .single();
   if (!profile) notFound();
 
-  const { data: reviews } = await supabase
+  const { data: reviews } = await admin
     .from("reviews")
     .select(
-      `id, contract_id, reviewer_id, reviewee_id, rating, comment, end_reason, created_at, reviewer:profiles!reviewer_id (full_name, email, avatar_url)`
+      `id, contract_id, reviewer_id, reviewee_id, rating, comment, end_reason, created_at, reviewer:profiles!reviewer_id (full_name, avatar_url)`
     )
     .eq("reviewee_id", id)
     .order("created_at", { ascending: false });

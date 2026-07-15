@@ -113,7 +113,11 @@ export default async function FreelancersPage({
   const skillFilters = asList(sp.skill).map((s) => s.toLowerCase());
   const jssMin = sp.jss ? Number(sp.jss) : 0;
 
-  const { data: freelancers } = await supabase
+  // Service-role read: this page is public, and once personal columns are
+  // revoked from the `anon` role a logged-out `select("*")` would fail. Only
+  // public fields (name, title, skills, rate, badges) ever render.
+  const admin = createAdminClient();
+  const { data: freelancers } = await admin
     .from("profiles")
     .select("*")
     .eq("role", "freelancer");
@@ -139,7 +143,6 @@ export default async function FreelancersPage({
   const invitesById: Record<string, number> = {}; // client invites received
   if (everyone.length > 0) {
     try {
-      const admin = createAdminClient();
       const ids = everyone.map((f) => f.id);
       const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString();
       const [pays, props, invs] = await Promise.all([
