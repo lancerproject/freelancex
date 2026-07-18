@@ -243,6 +243,8 @@ export default async function JobsPage({
           savedIds={savedIds}
           mySkills={mySkills}
           applied={applied}
+          savedSearches={savedSearches}
+          searchQuery={sp.q ?? ""}
         />
       </div>
     </main>

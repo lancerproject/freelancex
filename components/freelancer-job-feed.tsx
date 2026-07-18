@@ -54,6 +54,26 @@ function timeAgo(iso: string) {
   return `Posted ${months} month${months === 1 ? "" : "s"} ago`;
 }
 
+// Highlight the searched terms inside a piece of text (like Upwork does in
+// its results). Returns React nodes with the matches wrapped in a <mark>.
+function highlight(text: string, query: string): React.ReactNode {
+  const q = (query || "").trim();
+  if (!q || !text) return text;
+  const toks = q.split(/\s+/).filter((t) => t.length > 1).map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (!toks.length) return text;
+  const re = new RegExp(`(${toks.join("|")})`, "gi");
+  const parts = text.split(re);
+  return parts.map((p, i) =>
+    re.test(p) && toks.some((t) => new RegExp(`^${t}$`, "i").test(p)) ? (
+      <mark key={i} className="bg-primary/20 text-foreground rounded px-0.5">
+        {p}
+      </mark>
+    ) : (
+      <span key={i}>{p}</span>
+    )
+  );
+}
+
 export function FreelancerJobFeed({
   jobs,
   savedIds,
@@ -61,10 +81,12 @@ export function FreelancerJobFeed({
   personalized = false,
   savedSearches = [],
   applied = {},
+  searchQuery = "",
 }: {
   jobs: Job[];
   savedIds: string[];
   mySkills?: string[];
+  searchQuery?: string;
   // When true (the dashboard "Jobs you might like"), the feed shows ONLY jobs
   // relevant to the freelancer's category/skills. When false (the search
   // page), all results are shown, with the best matches ranked first.
@@ -158,6 +180,31 @@ export function FreelancerJobFeed({
     if (n < 20) return "10 to 20";
     return "20 to 50";
   };
+
+  // Sort dropdown (Upwork parity): Best matches vs Newest.
+  const [sort, setSort] = useState<"best" | "newest">("best");
+
+  // Result counts shown next to each filter option (like Upwork's sidebar).
+  const counts = useMemo(() => {
+    const open = jobs.filter((j) => countOf(j) < 50);
+    const exp: Record<string, number> = {};
+    const prop: Record<string, number> = {};
+    const bud: Record<string, number> = {};
+    let newClients = 0;
+    let hiredClients = 0;
+    for (const j of open) {
+      if (j.experience_level)
+        exp[j.experience_level] = (exp[j.experience_level] || 0) + 1;
+      const pb = filterBucket(countOf(j));
+      prop[pb] = (prop[pb] || 0) + 1;
+      const bb = budgetBucket(Number(j.budget) || 0);
+      bud[bb] = (bud[bb] || 0) + 1;
+      if ((Number(clientOf(j)?.total_spent) || 0) === 0) newClients++;
+      else hiredClients++;
+    }
+    return { exp, prop, bud, newClients, hiredClients, total: open.length };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs]);
 
   const toggleSave = (jobId: string) => {
     setSaved((prev) => {
@@ -257,41 +304,142 @@ export function FreelancerJobFeed({
         }
       }
     }
+    // Sort dropdown override (applies within the current tab).
+    if (tab !== "Saved Jobs" && sort === "newest") {
+      base = [...base].sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    }
     return base;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, jobs, saved, myTokens, hasSkills, personalized, savedSearches, expFilter, propFilter, clientFilter, budgetFilter]);
+  }, [tab, jobs, saved, myTokens, hasSkills, personalized, savedSearches, expFilter, propFilter, clientFilter, budgetFilter, sort]);
+
+  // Left filter sidebar (Upwork-style) — used on the search page, with a live
+  // result count next to each option.
+  const sidebar = (
+    <div className="space-y-1">
+      <FilterGroup title="Experience level">
+        {[
+          ["entry", "Entry level"],
+          ["intermediate", "Intermediate"],
+          ["expert", "Expert"],
+        ].map(([v, l]) => (
+          <CheckRow
+            key={v}
+            label={`${l}${counts.exp[v] ? ` (${counts.exp[v]})` : ""}`}
+            checked={expFilter.has(v)}
+            onChange={() => toggleIn(setExpFilter, v)}
+          />
+        ))}
+      </FilterGroup>
+      <FilterGroup title="Project budget">
+        {["Less than $100", "$100 to $500", "$500 to $1K", "$1K to $5K", "$5K+"].map(
+          (b) => (
+            <CheckRow
+              key={b}
+              label={`${b}${counts.bud[b] ? ` (${counts.bud[b]})` : ""}`}
+              checked={budgetFilter.has(b)}
+              onChange={() => toggleIn(setBudgetFilter, b)}
+            />
+          )
+        )}
+      </FilterGroup>
+      <FilterGroup title="Number of proposals">
+        {["Less than 5", "5 to 10", "10 to 20", "20 to 50"].map((b) => (
+          <CheckRow
+            key={b}
+            label={`${b}${counts.prop[b] ? ` (${counts.prop[b]})` : ""}`}
+            checked={propFilter.has(b)}
+            onChange={() => toggleIn(setPropFilter, b)}
+          />
+        ))}
+      </FilterGroup>
+      <FilterGroup title="Client history">
+        <CheckRow
+          label={`No hires (new client)${counts.newClients ? ` (${counts.newClients})` : ""}`}
+          checked={clientFilter.has("new")}
+          onChange={() => toggleIn(setClientFilter, "new")}
+        />
+        <CheckRow
+          label={`Has hired before${counts.hiredClients ? ` (${counts.hiredClients})` : ""}`}
+          checked={clientFilter.has("hires")}
+          onChange={() => toggleIn(setClientFilter, "hires")}
+        />
+      </FilterGroup>
+      {filterCount > 0 && (
+        <button
+          onClick={clearFilters}
+          className="text-sm text-primary hover:underline mt-3"
+        >
+          Clear filters ({filterCount})
+        </button>
+      )}
+    </div>
+  );
 
   return (
     <div>
-      {/* Tabs */}
-      <div className="flex items-center justify-between border-b border-border">
-        <div className="flex gap-6 text-sm">
-          {TABS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`pb-3 border-b-2 -mb-px transition ${
-                tab === t
-                  ? "border-foreground text-foreground font-medium"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {t === "Saved Jobs" && saved.size > 0 ? `Saved Jobs (${saved.size})` : t}
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={() => setShowFilters(true)}
-          className="flex items-center gap-2 text-sm border border-border rounded-full px-4 py-1.5 text-foreground hover:bg-secondary"
-        >
-          <span>⚙</span> Filters
-          {filterCount > 0 && (
-            <span className="bg-primary text-primary-foreground rounded-full px-1.5 text-xs">
-              {filterCount}
-            </span>
-          )}
-        </button>
-      </div>
+      <div
+        className={
+          personalized ? "" : "lg:grid lg:grid-cols-[250px_1fr] lg:gap-8"
+        }
+      >
+        {/* Persistent filter sidebar on the search page (desktop) */}
+        {!personalized && (
+          <aside className="hidden lg:block">
+            <h3 className="font-bold text-foreground mb-1">Filters</h3>
+            {sidebar}
+          </aside>
+        )}
+
+        <div className="min-w-0">
+          {/* Tabs + Sort + (mobile) Filters */}
+          <div className="flex items-center justify-between border-b border-border gap-3">
+            <div className="flex gap-6 text-sm overflow-x-auto">
+              {TABS.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  className={`pb-3 border-b-2 -mb-px transition whitespace-nowrap ${
+                    tab === t
+                      ? "border-foreground text-foreground font-medium"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t === "Saved Jobs" && saved.size > 0
+                    ? `Saved Jobs (${saved.size})`
+                    : t}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              {!personalized && (
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as "best" | "newest")}
+                  aria-label="Sort jobs"
+                  className="text-sm border border-border rounded-full px-3 py-1.5 bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="best">Sort: Best matches</option>
+                  <option value="newest">Sort: Newest</option>
+                </select>
+              )}
+              <button
+                onClick={() => setShowFilters(true)}
+                className={`flex items-center gap-2 text-sm border border-border rounded-full px-4 py-1.5 text-foreground hover:bg-secondary ${
+                  personalized ? "" : "lg:hidden"
+                }`}
+              >
+                <span>⚙</span> Filters
+                {filterCount > 0 && (
+                  <span className="bg-primary text-primary-foreground rounded-full px-1.5 text-xs">
+                    {filterCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
 
       <p className="text-sm text-muted-foreground mt-4 mb-2">
         {tab === "Saved Jobs"
@@ -434,7 +582,7 @@ export function FreelancerJobFeed({
                 onClick={() => setSelected(job)}
                 className="block text-left text-lg font-semibold text-foreground hover:text-primary mt-2"
               >
-                {job.title}
+                {highlight(job.title, searchQuery)}
               </button>
 
               {/* "Applied"/"Hired" badge — persists (DB-backed via the
@@ -481,7 +629,7 @@ export function FreelancerJobFeed({
 
               {job.description && (
                 <p className="text-sm text-foreground/80 mt-3 line-clamp-3">
-                  {job.description}
+                  {highlight(job.description, searchQuery)}
                 </p>
               )}
 
@@ -552,6 +700,9 @@ export function FreelancerJobFeed({
             )}
           </div>
         )}
+      </div>
+
+        </div>
       </div>
 
       {/* Slide-in job details panel (like Upwork) */}
