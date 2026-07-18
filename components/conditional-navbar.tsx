@@ -78,9 +78,16 @@ const FREELANCER_MENUS: Menu[] = [
     groups: [
       {
         items: [
-          { label: "Find work", href: "/dashboard" },
+          { label: "Find work", href: "/jobs" },
           { label: "Saved jobs", href: "/jobs?saved=1" },
           { label: "Proposals and offers", href: "/freelancer" },
+        ],
+      },
+      {
+        heading: "Your profile",
+        items: [
+          { label: "Profile", href: "/profile" },
+          { label: "My stats", href: "/stats" },
         ],
       },
     ],
