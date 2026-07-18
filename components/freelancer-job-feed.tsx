@@ -119,8 +119,9 @@ export function FreelancerJobFeed({
   const [expFilter, setExpFilter] = useState<Set<string>>(new Set());
   const [propFilter, setPropFilter] = useState<Set<string>>(new Set());
   const [clientFilter, setClientFilter] = useState<Set<string>>(new Set());
+  const [budgetFilter, setBudgetFilter] = useState<Set<string>>(new Set());
   const filterCount =
-    expFilter.size + propFilter.size + clientFilter.size;
+    expFilter.size + propFilter.size + clientFilter.size + budgetFilter.size;
   const toggleIn = (
     setter: React.Dispatch<React.SetStateAction<Set<string>>>,
     val: string
@@ -135,6 +136,15 @@ export function FreelancerJobFeed({
     setExpFilter(new Set());
     setPropFilter(new Set());
     setClientFilter(new Set());
+    setBudgetFilter(new Set());
+  };
+  // Fixed-price budget buckets (mirrors Upwork's price-range filter).
+  const budgetBucket = (n: number) => {
+    if (n < 100) return "Less than $100";
+    if (n < 500) return "$100 to $500";
+    if (n < 1000) return "$500 to $1K";
+    if (n < 5000) return "$1K to $5K";
+    return "$5K+";
   };
   const countOf = (j: Job) =>
     Array.isArray(j.proposals) ? j.proposals[0]?.count ?? 0 : 0;
@@ -185,6 +195,11 @@ export function FreelancerJobFeed({
             (clientFilter.has("hires") && !isNew)
           );
         });
+      }
+      if (budgetFilter.size) {
+        base = base.filter((j) =>
+          budgetFilter.has(budgetBucket(Number(j.budget) || 0))
+        );
       }
 
       const matchScore = (job: Job) => {
@@ -244,7 +259,7 @@ export function FreelancerJobFeed({
     }
     return base;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, jobs, saved, myTokens, hasSkills, personalized, savedSearches, expFilter, propFilter, clientFilter]);
+  }, [tab, jobs, saved, myTokens, hasSkills, personalized, savedSearches, expFilter, propFilter, clientFilter, budgetFilter]);
 
   return (
     <div>
@@ -620,6 +635,23 @@ export function FreelancerJobFeed({
                 checked={clientFilter.has("hires")}
                 onChange={() => toggleIn(setClientFilter, "hires")}
               />
+            </FilterGroup>
+
+            <FilterGroup title="Project budget">
+              {[
+                "Less than $100",
+                "$100 to $500",
+                "$500 to $1K",
+                "$1K to $5K",
+                "$5K+",
+              ].map((b) => (
+                <CheckRow
+                  key={b}
+                  label={b}
+                  checked={budgetFilter.has(b)}
+                  onChange={() => toggleIn(setBudgetFilter, b)}
+                />
+              ))}
             </FilterGroup>
 
             <div className="flex justify-end gap-3 mt-6">
