@@ -86,6 +86,10 @@ export function IdentityVerification({
   const [done, setDone] = useState(false);
   const [inReview, setInReview] = useState(false);
   const [camOn, setCamOn] = useState(false);
+  // camReady flips true only once the video actually has frames (videoWidth>0).
+  // On iOS the stream can attach before it's playable, so we gate "Capture" on
+  // this to avoid the "camera isn't ready yet" failure.
+  const [camReady, setCamReady] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -97,12 +101,14 @@ export function IdentityVerification({
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     setCamOn(false);
+    setCamReady(false);
   };
 
   // Rear ("environment") camera for ID cards; front ("user") for the selfie.
   const startCamera = async (facing: "user" | "environment") => {
     stopCamera();
     setError("");
+    setCamReady(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -113,9 +119,19 @@ export function IdentityVerification({
         audio: false,
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+      const v = videoRef.current;
+      if (v) {
+        v.srcObject = stream;
+        // Mark ready only when the stream truly has frames — Capture stays
+        // disabled until then. Handles iOS, where play() can resolve early.
+        v.onloadedmetadata = () => {
+          v.play().catch(() => {});
+          if (v.videoWidth > 0) setCamReady(true);
+        };
+        v.onplaying = () => {
+          if (v.videoWidth > 0) setCamReady(true);
+        };
+        v.play().catch(() => {});
       }
       setCamOn(true);
     } catch {
@@ -359,6 +375,7 @@ export function IdentityVerification({
           <div className="relative w-full max-w-sm">
             <video
               ref={videoRef}
+              autoPlay
               playsInline
               muted
               className="w-full rounded-lg border border-border bg-black aspect-[4/3] object-cover"
@@ -371,9 +388,17 @@ export function IdentityVerification({
               <button
                 type="button"
                 onClick={() => startCamera("environment")}
-                className="border border-border rounded-full px-4 py-2 text-sm hover:bg-secondary"
+                className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-semibold hover:opacity-90"
               >
                 Start camera
+              </button>
+            ) : !camReady ? (
+              <button
+                type="button"
+                disabled
+                className="border border-border rounded-full px-4 py-2 text-sm opacity-60"
+              >
+                Starting camera…
               </button>
             ) : (
               <button
@@ -581,6 +606,7 @@ export function IdentityVerification({
               <div className="relative w-full max-w-xs mx-auto">
                 <video
                   ref={videoRef}
+                  autoPlay
                   playsInline
                   muted
                   className="w-full rounded-full border border-border bg-black aspect-square object-cover"
@@ -600,9 +626,17 @@ export function IdentityVerification({
                   <button
                     type="button"
                     onClick={() => startCamera("user")}
-                    className="border border-border rounded-full px-4 py-2 text-sm hover:bg-secondary"
+                    className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-semibold hover:opacity-90"
                   >
                     Start camera
+                  </button>
+                ) : !camReady ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="border border-border rounded-full px-4 py-2 text-sm opacity-60"
+                  >
+                    Starting camera…
                   </button>
                 ) : (
                   <>

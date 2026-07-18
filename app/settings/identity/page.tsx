@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { IdentityVerification } from "@/components/identity-verification";
 import { PhoneVerifyQR } from "@/components/phone-verify-qr";
@@ -46,6 +47,15 @@ export default async function IdentityVerificationPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  // ID capture needs a phone's rear camera, so we split by device:
+  //  • Laptop / desktop  → show ONLY the QR to continue on a phone (no camera)
+  //  • Phone / mobile    → show ONLY the camera capture (no QR)
+  const ua = (await headers()).get("user-agent") || "";
+  const isMobile =
+    /Android|iPhone|iPod|Windows Phone|webOS|BlackBerry|Opera Mini|IEMobile|Mobile/i.test(
+      ua
+    );
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -186,10 +196,14 @@ export default async function IdentityVerificationPage() {
           far better than laptop webcams; the on-computer camera stays as a
           fallback below it. */}
       {isFreelancer && !verified && !underReview && (
-        <>
-          <PhoneVerifyQR />
+        isMobile ? (
+          // On a phone: capture ID + selfie right here with the rear camera.
           <IdentityVerification profilePhoto={profile?.avatar_url ?? null} />
-        </>
+        ) : (
+          // On a laptop/desktop: you can't verify here — scan the QR and finish
+          // on your phone (its camera captures IDs far better).
+          <PhoneVerifyQR />
+        )
       )}
 
       {!isFreelancer && !verified && (
