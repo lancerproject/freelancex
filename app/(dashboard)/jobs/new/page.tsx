@@ -70,6 +70,18 @@ export default function NewJobWizard() {
   const jobType = "fixed";
   const [budget, setBudget] = useState("");
   const [description, setDescription] = useState("");
+  const [screeningQuestions, setScreeningQuestions] = useState<string[]>([]);
+  const [questionInput, setQuestionInput] = useState("");
+
+  const addQuestion = () => {
+    const v = questionInput.trim();
+    if (v && screeningQuestions.length < 8 && !screeningQuestions.includes(v)) {
+      setScreeningQuestions([...screeningQuestions, v]);
+    }
+    setQuestionInput("");
+  };
+  const removeQuestion = (i: number) =>
+    setScreeningQuestions(screeningQuestions.filter((_, x) => x !== i));
 
   const addSkill = (s: string) => {
     const v = s.trim();
@@ -601,6 +613,61 @@ export default function NewJobWizard() {
               <p className="text-muted-foreground text-xs mt-2">
                 Max file size: 100MB
               </p>
+
+              {/* Screening questions (optional) */}
+              <div className="mt-8 border-t border-border pt-6">
+                <p className="text-foreground font-semibold">
+                  Screening questions{" "}
+                  <span className="text-muted-foreground font-normal">
+                    (optional)
+                  </span>
+                </p>
+                <p className="text-muted-foreground text-sm mb-3">
+                  Ask applicants specific questions — they&apos;ll answer these
+                  in their proposal.
+                </p>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    addQuestion();
+                  }}
+                  className="flex gap-2"
+                >
+                  <input
+                    value={questionInput}
+                    onChange={(e) => setQuestionInput(e.target.value)}
+                    placeholder="e.g. Share a link to similar work you've done"
+                    className="flex-1 bg-background border border-border text-foreground rounded-lg py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <button
+                    type="submit"
+                    className="border border-primary text-primary rounded-lg px-4 py-2.5 font-medium hover:bg-primary/10 shrink-0"
+                  >
+                    Add
+                  </button>
+                </form>
+                {screeningQuestions.length > 0 && (
+                  <ul className="mt-3 space-y-2">
+                    {screeningQuestions.map((q, i) => (
+                      <li
+                        key={i}
+                        className="flex items-start justify-between gap-3 bg-secondary rounded-lg px-3 py-2 text-sm text-foreground"
+                      >
+                        <span>
+                          {i + 1}. {q}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeQuestion(i)}
+                          className="text-orange-500 hover:underline shrink-0"
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -668,6 +735,15 @@ export default function NewJobWizard() {
                   </div>
                 </ReviewRow>
               )}
+              {screeningQuestions.length > 0 && (
+                <ReviewRow label="Screening questions" onEdit={() => setStep(5)}>
+                  <ul className="text-foreground list-decimal pl-5 space-y-1">
+                    {screeningQuestions.map((q, i) => (
+                      <li key={i}>{q}</li>
+                    ))}
+                  </ul>
+                </ReviewRow>
+              )}
             </div>
 
             {/* Finalize — publish or save as draft */}
@@ -693,6 +769,11 @@ export default function NewJobWizard() {
                 value={otherQuals}
               />
               <input type="hidden" name="description" value={description} />
+              <input
+                type="hidden"
+                name="screening_questions"
+                value={JSON.stringify(screeningQuestions)}
+              />
 
               <button
                 formAction={createJob.bind(null, "open")}

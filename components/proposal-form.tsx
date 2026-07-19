@@ -17,6 +17,7 @@ export function ProposalForm({
   budget,
   inviteId,
   plan = "basic",
+  screeningQuestions = [],
 }: {
   jobId: string;
   budget?: number;
@@ -24,8 +25,14 @@ export function ProposalForm({
   inviteId?: string;
   // The viewer's plan drives the marketplace fee shown (Pro 5%, Basic 10%).
   plan?: string;
+  // The client's screening questions the freelancer must answer.
+  screeningQuestions?: string[];
 }) {
   const supabase = getBrowserSupabase();
+
+  const [answers, setAnswers] = useState<string[]>(
+    () => screeningQuestions.map(() => "")
+  );
 
   // "3 things you need to know" agreement gate (Upwork-style): clicking
   // "Submit proposal" opens this modal; the proposal is only submitted after
@@ -94,7 +101,11 @@ export function ProposalForm({
   const cleanMilestones = milestones.filter(
     (m) => m.description.trim() || Number(m.amount) > 0
   );
-  const canSubmit = cover.trim().length > 0 && total > 0 && !uploading;
+  const allAnswered = screeningQuestions.every(
+    (_, i) => (answers[i] || "").trim().length > 0
+  );
+  const canSubmit =
+    cover.trim().length > 0 && total > 0 && !uploading && allAnswered;
 
   const card =
     "rounded-2xl border border-border bg-card p-6 lg:p-8";
@@ -111,6 +122,51 @@ export function ProposalForm({
       <input type="hidden" name="bid_amount" value={String(total)} />
       <input type="hidden" name="attachments" value={JSON.stringify(files)} />
       {inviteId && <input type="hidden" name="invite_id" value={inviteId} />}
+      <input
+        type="hidden"
+        name="screening_answers"
+        value={JSON.stringify(
+          screeningQuestions.map((q, i) => ({
+            question: q,
+            answer: answers[i] || "",
+          }))
+        )}
+      />
+
+      {/* ---------------- Screening questions ---------------- */}
+      {screeningQuestions.length > 0 && (
+        <section className={card}>
+          <h2 className="text-xl font-bold text-foreground mb-1">
+            Answer the client&apos;s questions
+          </h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            The client asked these — a clear answer helps you stand out.
+          </p>
+          <div className="space-y-5">
+            {screeningQuestions.map((q, i) => (
+              <div key={i}>
+                <label className="block font-medium text-foreground mb-1">
+                  {i + 1}. {q}
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={answers[i] || ""}
+                  onChange={(e) =>
+                    setAnswers((prev) => {
+                      const n = [...prev];
+                      n[i] = e.target.value;
+                      return n;
+                    })
+                  }
+                  placeholder="Your answer"
+                  className="w-full bg-background border border-border text-foreground rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ---------------- Terms ---------------- */}
       <section className={card}>

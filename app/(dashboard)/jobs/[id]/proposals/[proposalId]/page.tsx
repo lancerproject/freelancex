@@ -285,6 +285,31 @@ export default async function ProposalDetailPage({
           <p className="text-foreground whitespace-pre-line mt-4 leading-relaxed">
             {p.cover_letter || "No cover letter provided."}
           </p>
+          {Array.isArray(p.screening_answers) &&
+            p.screening_answers.length > 0 && (
+              <div className="mt-6 border-t border-border pt-4">
+                <h4 className="font-semibold text-foreground mb-3">
+                  Screening questions
+                </h4>
+                <div className="space-y-4">
+                  {(
+                    p.screening_answers as {
+                      question: string;
+                      answer: string;
+                    }[]
+                  ).map((qa, i) => (
+                    <div key={i}>
+                      <p className="text-sm font-medium text-foreground">
+                        {qa.question}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1 whitespace-pre-line">
+                        {qa.answer || "—"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
         </div>
       )}
 

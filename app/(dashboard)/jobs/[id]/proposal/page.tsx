@@ -184,6 +184,11 @@ export default async function ProposalPage({
           budget={job.budget}
           inviteId={invite}
           plan={viewerPlan}
+          screeningQuestions={
+            Array.isArray(job.screening_questions)
+              ? job.screening_questions
+              : []
+          }
         />
       </div>
     </main>

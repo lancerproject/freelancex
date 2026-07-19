@@ -111,6 +111,17 @@ export async function submitProposal(jobId: string, formData: FormData) {
   };
   const deliveryDays = duration ? DAYS[duration] ?? null : null;
 
+  // Answers to the client's screening questions (if any).
+  let screeningAnswers: { question: string; answer: string }[] = [];
+  try {
+    const parsed = JSON.parse(
+      (formData.get("screening_answers") as string) || "[]"
+    );
+    if (Array.isArray(parsed)) screeningAnswers = parsed.slice(0, 8);
+  } catch {
+    /* none */
+  }
+
   const fields = {
     cover_letter: coverLetter,
     bid_amount: bidAmount,
@@ -119,6 +130,7 @@ export async function submitProposal(jobId: string, formData: FormData) {
     milestones: paymentType === "milestone" ? milestones : null,
     duration,
     attachments: attachments.length ? attachments : null,
+    screening_answers: screeningAnswers,
   };
 
   let error;

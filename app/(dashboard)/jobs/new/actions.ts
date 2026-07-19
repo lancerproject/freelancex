@@ -29,6 +29,20 @@ export async function createJob(status: string, formData: FormData) {
     redirect("/dashboard");
   }
 
+  // Optional screening questions (client asks; freelancers answer in proposals).
+  let screening: string[] = [];
+  try {
+    const parsed = JSON.parse(
+      (formData.get("screening_questions") as string) || "[]"
+    );
+    if (Array.isArray(parsed))
+      screening = parsed
+        .filter((x) => typeof x === "string" && x.trim())
+        .slice(0, 8);
+  } catch {
+    /* no questions */
+  }
+
   const isDraft = status === "draft";
   const { data: created, error } = await supabase
     .from("jobs")
@@ -44,6 +58,7 @@ export async function createJob(status: string, formData: FormData) {
       talent_location: formData.get("talent_location") || "worldwide",
       english_level: formData.get("english_level") || null,
       preferred_qualifications: formData.get("preferred_qualifications") || null,
+      screening_questions: screening,
       status: isDraft ? "draft" : "open",
       client_id: user.id,
     })
