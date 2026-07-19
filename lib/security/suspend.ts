@@ -133,6 +133,7 @@ export async function suspendAccount(params: {
         body: statusBlockMessage(status),
         ctaLabel: "Contact support",
         ctaUrl: "mailto:support@xwork.com",
+        type: "account",
       });
     }
   } catch {

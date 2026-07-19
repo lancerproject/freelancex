@@ -148,6 +148,7 @@ export async function sendSecurityQuestionReset(): Promise<{ ok: boolean }> {
     body: `We received a request to reset your security question. Use the button below to set a new one. This link expires in ${RESET_TTL_MIN} minutes and can only be used once. If you didn't request this, you can safely ignore this email.`,
     ctaLabel: "Reset security question",
     ctaUrl: link,
+    type: "account",
   });
 
   // In-app trace (never contains the token).

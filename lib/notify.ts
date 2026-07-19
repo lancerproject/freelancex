@@ -66,7 +66,9 @@ export async function notify(
         subject: title,
         heading: title,
         body: message,
-        ctaLabel: link ? "View on Xwork" : undefined,
+        // Per-event template picks the badge/accent + a fitting CTA label
+        // (e.g. "Open conversation", "View payment") from the notification type.
+        type,
         ctaUrl: link,
       });
     }
