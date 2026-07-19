@@ -1,10 +1,15 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { uploadIdDoc } from "@/app/(dashboard)/profile/upload-actions";
+import { getBrowserSupabase } from "@/lib/supabase-browser";
 import { verifyIdentity } from "@/app/settings/identity/actions";
 import { COUNTRIES } from "@/lib/countries";
+
+// Max upload size for an ID/selfie image. Client-side upload goes straight to
+// Supabase Storage, so there's no Next.js server-action body limit to worry
+// about — a phone photo (typically 2–8 MB) uploads fine.
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB
 
 /* ------------------------------------------------------------------ */
 /* face-api.js (loaded from CDN at runtime, ignored by the bundler)    */
@@ -161,25 +166,57 @@ export function IdentityVerification({
     return { file, preview: URL.createObjectURL(file) };
   };
 
+  // Upload an ID/selfie image DIRECTLY to the private id-verifications bucket
+  // from the browser. This bypasses the Next.js server-action body limit (1 MB)
+  // that used to silently hang large phone photos on "Saving…". The bucket's
+  // RLS lets an authenticated user write only under their own {uid}/ prefix.
   const uploadShot = async (
     file: File,
     preview: string,
     set: (s: Shot) => void,
     label: string
   ) => {
-    setBusy(`Saving ${label}…`);
-    const fd = new FormData();
-    fd.set("file", file);
-    const res = await uploadIdDoc(fd);
-    setBusy("");
-    if (res.path) {
-      // We store the private storage PATH (admins view via a signed URL). The
-      // on-screen preview + face match use the local blob, so this is fine.
-      set({ url: res.path, preview });
-      return true;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError(
+        `That photo is too large (max 25 MB). Please choose a smaller image.`
+      );
+      return false;
     }
-    setError(res.error || "Upload failed.");
-    return false;
+    setError("");
+    setBusy(`Uploading ${label}…`);
+    try {
+      const sb = getBrowserSupabase();
+      const {
+        data: { user },
+      } = await sb.auth.getUser();
+      if (!user) {
+        setBusy("");
+        setError("Your session expired. Please refresh and sign in again.");
+        return false;
+      }
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const rand = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const path = `${user.id}/${rand}.${ext}`;
+      const { error } = await sb.storage
+        .from("id-verifications")
+        .upload(path, file, {
+          contentType: file.type || "image/jpeg",
+          upsert: false,
+        });
+      setBusy("");
+      if (error) {
+        setError(error.message || "Upload failed. Please try again.");
+        return false;
+      }
+      // Store the private storage PATH (admins view via a signed URL). The
+      // on-screen preview + face match use the local blob, so this is fine.
+      set({ url: path, preview });
+      return true;
+    } catch {
+      setBusy("");
+      setError("Upload failed. Please check your connection and try again.");
+      return false;
+    }
   };
 
   // ---- Native file capture (RELIABLE on every device) ----
@@ -224,14 +261,6 @@ export function IdentityVerification({
     if (idD) scores.push(matchPct(api, selfieD, idD));
     setFaceScore(scores.length ? Math.round(Math.min(...scores)) : 0);
     setBusy("");
-  };
-
-  // Capture an ID side from the (rear) camera.
-  const captureId = async (set: (s: Shot) => void, label: string) => {
-    const shot = await captureFrame(`${label}.jpg`);
-    if (!shot) return;
-    stopCamera();
-    await uploadShot(shot.file, shot.preview, set, label);
   };
 
   const captureSelfie = async () => {
@@ -279,6 +308,23 @@ export function IdentityVerification({
     };
     setTimeout(tick, 1000);
   };
+
+  // When the user reaches the selfie step, open the front camera automatically
+  // so it feels like a live face check (Face-ID style). If the browser blocks
+  // it, the error message + native-photo fallback below take over.
+  useEffect(() => {
+    if (step === 4 && !selfie && !camOn) {
+      void startCamera("user");
+    }
+    if ((step !== 4 || selfie) && camOn) {
+      stopCamera();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, selfie]);
+
+  // Always release the camera when this component unmounts.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => () => stopCamera(), []);
 
   const submit = () => {
     setError("");
@@ -377,7 +423,9 @@ export function IdentityVerification({
     </div>
   );
 
-  // Reusable rear-camera capture UI for an ID side.
+  // Upload UI for an ID side. ID front/back are UPLOADED (photo from the
+  // device — camera or gallery); only the selfie is a live capture. Uploading
+  // is reliable on every device and avoids the flaky in-browser rear camera.
   const IdCapture = ({
     shot,
     set,
@@ -408,71 +456,25 @@ export function IdentityVerification({
             onClick={() => set(null)}
             className="text-sm text-primary hover:underline mt-2"
           >
-            Retake
+            Choose a different photo
           </button>
         </div>
       ) : (
         <div className="space-y-3">
-          {/* Primary: native camera / photo picker — works on every device */}
           <label className="inline-flex items-center gap-2 bg-primary text-primary-foreground rounded-full px-5 py-2.5 text-sm font-semibold hover:opacity-90 cursor-pointer">
-            📷 Take photo of your ID
+            📤 Upload {label}
             <input
               type="file"
               accept="image/*"
-              capture="environment"
               className="hidden"
               onChange={(e) => onPickIdFile(e, set, label)}
             />
           </label>
           <p className="text-xs text-muted-foreground">
-            Opens your camera — or pick a clear photo from your gallery.
+            Pick a clear photo of your ID from your device (JPG or PNG, up to
+            25&nbsp;MB). On a phone you can take a new photo or choose one from
+            your gallery.
           </p>
-
-          {/* Fallback: in-browser live camera preview */}
-          <details className="mt-1">
-            <summary className="text-sm text-primary cursor-pointer hover:underline">
-              Or use the live camera
-            </summary>
-            <div className="mt-3">
-              <div className="relative w-full max-w-sm">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full rounded-lg border border-border bg-black aspect-[4/3] object-cover"
-                />
-                <div className="pointer-events-none absolute inset-6 rounded-xl border-2 border-white/80" />
-              </div>
-              <div className="flex gap-3 mt-3">
-                {!camOn ? (
-                  <button
-                    type="button"
-                    onClick={() => startCamera("environment")}
-                    className="border border-border rounded-full px-4 py-2 text-sm hover:bg-secondary"
-                  >
-                    Start camera
-                  </button>
-                ) : !camReady ? (
-                  <button
-                    type="button"
-                    disabled
-                    className="border border-border rounded-full px-4 py-2 text-sm opacity-60"
-                  >
-                    Starting camera…
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => captureId(set, label)}
-                    className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-semibold hover:opacity-90"
-                  >
-                    Capture
-                  </button>
-                )}
-              </div>
-            </div>
-          </details>
         </div>
       )}
     </div>
@@ -488,15 +490,15 @@ export function IdentityVerification({
       )}
       {busy && <p className="mb-4 text-sm text-muted-foreground">{busy}</p>}
 
-      {/* Step 1 — front of ID (rear camera) */}
+      {/* Step 1 — front of ID (upload) */}
       {step === 1 && (
         <div>
           <IdCapture
             shot={front}
             set={setFront}
             label="front of ID"
-            heading="Scan the front of your ID"
-            hint="Hold your government ID (passport, driver's license or national ID) inside the frame and tap Capture. Keep it flat and readable."
+            heading="Upload the front of your ID"
+            hint="Upload a clear photo of your government ID (passport, driver's license or national ID). Make sure all four corners are visible and the text is readable."
           />
           <div className="flex justify-end mt-6">
             <button
@@ -514,15 +516,15 @@ export function IdentityVerification({
         </div>
       )}
 
-      {/* Step 2 — back of ID (rear camera) */}
+      {/* Step 2 — back of ID (upload) */}
       {step === 2 && (
         <div>
           <IdCapture
             shot={back}
             set={setBack}
             label="back of ID"
-            heading="Scan the back of your ID"
-            hint="Now flip your ID over and show the back inside the frame."
+            heading="Upload the back of your ID"
+            hint="Now upload a photo of the back of the same ID. (If your document has no back, upload the front again.)"
           />
           <div className="flex justify-between mt-6">
             <button
@@ -666,83 +668,82 @@ export function IdentityVerification({
 
           {!selfie ? (
             <div className="space-y-3">
-              {/* Primary: native front-camera selfie — reliable everywhere */}
-              <label className="inline-flex items-center gap-2 bg-primary text-primary-foreground rounded-full px-5 py-2.5 text-sm font-semibold hover:opacity-90 cursor-pointer">
-                🤳 Take a selfie
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="user"
-                  className="hidden"
-                  onChange={onPickSelfieFile}
+              {/* Primary: LIVE front-camera selfie (auto-starts on this step) */}
+              <div className="relative w-full max-w-xs mx-auto">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full rounded-full border border-border bg-black aspect-square object-cover"
                 />
-              </label>
-              <p className="text-xs text-muted-foreground">
-                Opens your front camera. Make sure your face is clear and
-                well-lit.
-              </p>
+                <div className="pointer-events-none absolute inset-4 rounded-full border-2 border-white/80" />
+                {countdown > 0 && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-6xl font-bold text-white drop-shadow-lg">
+                      {countdown}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-3 mt-4 justify-center">
+                {!camOn ? (
+                  <button
+                    type="button"
+                    onClick={() => startCamera("user")}
+                    className="border border-border rounded-full px-4 py-2 text-sm hover:bg-secondary"
+                  >
+                    Start camera
+                  </button>
+                ) : !camReady ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="border border-border rounded-full px-4 py-2 text-sm opacity-60"
+                  >
+                    Starting camera…
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      disabled={countdown > 0 || !!busy}
+                      onClick={startSelfieCountdown}
+                      className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-60"
+                    >
+                      {countdown > 0 ? `Capturing in ${countdown}…` : "Take selfie"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={countdown > 0 || !!busy}
+                      onClick={captureSelfie}
+                      className="border border-border rounded-full px-4 py-2 text-sm hover:bg-secondary disabled:opacity-60"
+                    >
+                      Capture now
+                    </button>
+                  </>
+                )}
+              </div>
 
-              {/* Fallback: in-browser live selfie */}
-              <details className="mt-1">
-                <summary className="text-sm text-primary cursor-pointer hover:underline">
-                  Or use the live camera
+              {/* Fallback: if the live camera won't open, upload a selfie photo */}
+              <details className="mt-2">
+                <summary className="text-sm text-primary cursor-pointer hover:underline text-center">
+                  Camera not working? Upload a selfie instead
                 </summary>
-                <div className="mt-3">
-                  <div className="relative w-full max-w-xs mx-auto">
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className="w-full rounded-full border border-border bg-black aspect-square object-cover"
-                    />
-                    <div className="pointer-events-none absolute inset-4 rounded-full border-2 border-white/80" />
-                    {countdown > 0 && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-6xl font-bold text-white drop-shadow-lg">
-                          {countdown}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex gap-3 mt-4 justify-center">
-                    {!camOn ? (
-                      <button
-                        type="button"
-                        onClick={() => startCamera("user")}
-                        className="border border-border rounded-full px-4 py-2 text-sm hover:bg-secondary"
-                      >
-                        Start camera
-                      </button>
-                    ) : !camReady ? (
-                      <button
-                        type="button"
-                        disabled
-                        className="border border-border rounded-full px-4 py-2 text-sm opacity-60"
-                      >
-                        Starting camera…
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          disabled={countdown > 0}
-                          onClick={startSelfieCountdown}
-                          className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-60"
-                        >
-                          {countdown > 0 ? `Capturing in ${countdown}…` : "Start"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={captureSelfie}
-                          className="border border-border rounded-full px-4 py-2 text-sm hover:bg-secondary"
-                        >
-                          Capture now
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
+                <label className="mt-3 inline-flex items-center gap-2 border border-border rounded-full px-5 py-2.5 text-sm font-semibold hover:bg-secondary cursor-pointer">
+                  🤳 Upload a selfie
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="user"
+                    className="hidden"
+                    onChange={onPickSelfieFile}
+                  />
+                </label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Opens your front camera or gallery. Make sure your face is
+                  clear and well-lit.
+                </p>
               </details>
             </div>
           ) : (
