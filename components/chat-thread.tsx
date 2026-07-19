@@ -143,6 +143,23 @@ export function ChatThread({
   const supabase = getBrowserSupabase();
   const ended = !!endedAt;
 
+  // Typing indicator (Supabase broadcast channel).
+  const [otherTyping, setOtherTyping] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const typingChanRef = useRef<any>(null);
+  const typingClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTypingRef = useRef(0);
+  const sendTyping = () => {
+    const now = Date.now();
+    if (now - lastTypingRef.current < 1500) return; // throttle broadcasts
+    lastTypingRef.current = now;
+    typingChanRef.current?.send({
+      type: "broadcast",
+      event: "typing",
+      payload: { userId },
+    });
+  };
+
   // Live updates — append any new message in this conversation.
   useEffect(() => {
     const channel = supabase
@@ -186,6 +203,36 @@ export function ChatThread({
       supabase.removeChannel(channel);
     };
   }, [conversationId, supabase]);
+
+  // Typing indicator — a lightweight broadcast channel separate from the DB
+  // changes above. When the other participant types, show "typing…" for ~3s.
+  useEffect(() => {
+    const chan = supabase.channel(`typing:${conversationId}`, {
+      config: { broadcast: { self: false } },
+    });
+    chan
+      .on(
+        "broadcast",
+        { event: "typing" },
+        (msg: { payload?: { userId?: string } }) => {
+          if (msg.payload?.userId && msg.payload.userId !== userId) {
+            setOtherTyping(true);
+            if (typingClearRef.current) clearTimeout(typingClearRef.current);
+            typingClearRef.current = setTimeout(
+              () => setOtherTyping(false),
+              3000
+            );
+          }
+        }
+      )
+      .subscribe();
+    typingChanRef.current = chan;
+    return () => {
+      if (typingClearRef.current) clearTimeout(typingClearRef.current);
+      supabase.removeChannel(chan);
+      typingChanRef.current = null;
+    };
+  }, [conversationId, supabase, userId]);
 
   // Mark the other person's messages read as soon as they're on screen (on
   // mount and whenever a new one arrives via realtime), so the SENDER sees
@@ -604,6 +651,11 @@ export function ChatThread({
 
       {/* Input / ended / blocked state */}
       <div className="bg-card border-t border-border px-6 py-4 shrink-0">
+        {otherTyping && !ended && (
+          <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+            <span className="animate-pulse">●</span> typing…
+          </p>
+        )}
         {ended ? (
           <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
             <span>
@@ -720,7 +772,10 @@ export function ChatThread({
             <textarea
               ref={inputRef}
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => {
+                setText(e.target.value);
+                if (!blocked && !ended) sendTyping();
+              }}
               onKeyDown={onKeyDown}
               disabled={blocked}
               rows={1}
