@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toggleSaveJobQuiet } from "@/app/saved/actions";
+import { saveSearch } from "@/app/(dashboard)/jobs/search-actions";
 import { getJobPanelData } from "@/app/(dashboard)/jobs/client-actions";
 import { OtherOpenJobs } from "@/components/other-open-jobs";
 import { CopyLink } from "@/components/copy-link";
@@ -142,8 +143,13 @@ export function FreelancerJobFeed({
   const [propFilter, setPropFilter] = useState<Set<string>>(new Set());
   const [clientFilter, setClientFilter] = useState<Set<string>>(new Set());
   const [budgetFilter, setBudgetFilter] = useState<Set<string>>(new Set());
+  const [catFilter, setCatFilter] = useState<Set<string>>(new Set());
   const filterCount =
-    expFilter.size + propFilter.size + clientFilter.size + budgetFilter.size;
+    expFilter.size +
+    propFilter.size +
+    clientFilter.size +
+    budgetFilter.size +
+    catFilter.size;
   const toggleIn = (
     setter: React.Dispatch<React.SetStateAction<Set<string>>>,
     val: string
@@ -159,6 +165,7 @@ export function FreelancerJobFeed({
     setPropFilter(new Set());
     setClientFilter(new Set());
     setBudgetFilter(new Set());
+    setCatFilter(new Set());
   };
   // Fixed-price budget buckets (mirrors Upwork's price-range filter).
   const budgetBucket = (n: number) => {
@@ -190,11 +197,13 @@ export function FreelancerJobFeed({
     const exp: Record<string, number> = {};
     const prop: Record<string, number> = {};
     const bud: Record<string, number> = {};
+    const cat: Record<string, number> = {};
     let newClients = 0;
     let hiredClients = 0;
     for (const j of open) {
       if (j.experience_level)
         exp[j.experience_level] = (exp[j.experience_level] || 0) + 1;
+      if (j.category) cat[j.category] = (cat[j.category] || 0) + 1;
       const pb = filterBucket(countOf(j));
       prop[pb] = (prop[pb] || 0) + 1;
       const bb = budgetBucket(Number(j.budget) || 0);
@@ -202,7 +211,7 @@ export function FreelancerJobFeed({
       if ((Number(clientOf(j)?.total_spent) || 0) === 0) newClients++;
       else hiredClients++;
     }
-    return { exp, prop, bud, newClients, hiredClients, total: open.length };
+    return { exp, prop, bud, cat, newClients, hiredClients, total: open.length };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobs]);
 
@@ -247,6 +256,9 @@ export function FreelancerJobFeed({
         base = base.filter((j) =>
           budgetFilter.has(budgetBucket(Number(j.budget) || 0))
         );
+      }
+      if (catFilter.size) {
+        base = base.filter((j) => catFilter.has(j.category));
       }
 
       const matchScore = (job: Job) => {
@@ -313,12 +325,27 @@ export function FreelancerJobFeed({
     }
     return base;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, jobs, saved, myTokens, hasSkills, personalized, savedSearches, expFilter, propFilter, clientFilter, budgetFilter, sort]);
+  }, [tab, jobs, saved, myTokens, hasSkills, personalized, savedSearches, expFilter, propFilter, clientFilter, budgetFilter, catFilter, sort]);
 
   // Left filter sidebar (Upwork-style) — used on the search page, with a live
   // result count next to each option.
   const sidebar = (
     <div className="space-y-1">
+      {Object.keys(counts.cat).length > 0 && (
+        <FilterGroup title="Category">
+          {Object.entries(counts.cat)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 12)
+            .map(([c, n]) => (
+              <CheckRow
+                key={c}
+                label={`${c} (${n})`}
+                checked={catFilter.has(c)}
+                onChange={() => toggleIn(setCatFilter, c)}
+              />
+            ))}
+        </FilterGroup>
+      )}
       <FilterGroup title="Experience level">
         {[
           ["entry", "Entry level"],
@@ -414,6 +441,30 @@ export function FreelancerJobFeed({
               ))}
             </div>
             <div className="flex items-center gap-3 shrink-0">
+              {/* Save this search → it powers the "My Feed" tab (Upwork parity) */}
+              {!personalized &&
+                (searchQuery || catFilter.size > 0 || expFilter.size > 0) && (
+                  <form action={saveSearch}>
+                    <input type="hidden" name="q" value={searchQuery} />
+                    <input
+                      type="hidden"
+                      name="category"
+                      value={Array.from(catFilter)[0] || ""}
+                    />
+                    <input
+                      type="hidden"
+                      name="experience_level"
+                      value={Array.from(expFilter)[0] || ""}
+                    />
+                    <input type="hidden" name="min_budget" value="" />
+                    <button
+                      type="submit"
+                      className="flex items-center gap-1.5 text-sm border border-primary text-primary rounded-full px-3 py-1.5 hover:bg-primary/10 whitespace-nowrap"
+                    >
+                      ♡ Save search
+                    </button>
+                  </form>
+                )}
               {!personalized && (
                 <select
                   value={sort}
@@ -746,6 +797,22 @@ export function FreelancerJobFeed({
             <p className="text-sm text-muted-foreground mb-2">
               Filters apply to Best Matches and My Feed.
             </p>
+
+            {Object.keys(counts.cat).length > 0 && (
+              <FilterGroup title="Category">
+                {Object.entries(counts.cat)
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, 12)
+                  .map(([c, n]) => (
+                    <CheckRow
+                      key={c}
+                      label={`${c} (${n})`}
+                      checked={catFilter.has(c)}
+                      onChange={() => toggleIn(setCatFilter, c)}
+                    />
+                  ))}
+              </FilterGroup>
+            )}
 
             <FilterGroup title="Experience level">
               {[
