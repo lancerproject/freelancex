@@ -5,6 +5,7 @@ import { ChangePassword } from "@/components/change-password-modal";
 import { ConnectProvider } from "@/components/connect-provider";
 import { SecurityQuestionLink } from "@/components/security-question-link";
 import { VerificationPreferences } from "@/components/verification-preferences";
+import { SignOutOthers } from "@/components/sign-out-others";
 
 export const metadata = { title: "Password and security | Xwork" };
 
@@ -164,6 +165,24 @@ export default async function SecuritySettingsPage({
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ---------------- Devices & sessions ---------------- */}
+      <section>
+        <h3 className="text-xl font-bold text-foreground">
+          Devices and sessions
+        </h3>
+        <div className="mt-2 py-5">
+          <p className="font-semibold text-foreground">
+            Where you&apos;re logged in
+          </p>
+          <p className="text-muted-foreground text-sm mt-1 mb-3">
+            You&apos;re signed in on this device. If you&apos;ve signed in on a
+            shared, public, or lost device, sign out everywhere else — this
+            device stays logged in.
+          </p>
+          <SignOutOthers />
         </div>
       </section>
     </div>
