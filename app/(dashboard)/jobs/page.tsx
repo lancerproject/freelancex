@@ -11,6 +11,7 @@ type SearchParams = {
   experience_level?: string;
   min_budget?: string;
   saved?: string;
+  tab?: string;
 };
 
 export default async function JobsPage({
@@ -245,6 +246,7 @@ export default async function JobsPage({
           applied={applied}
           savedSearches={savedSearches}
           searchQuery={sp.q ?? ""}
+          initialTab={sp.tab === "saved" ? "Saved Jobs" : ""}
         />
       </div>
     </main>

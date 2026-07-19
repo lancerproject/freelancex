@@ -83,11 +83,14 @@ export function FreelancerJobFeed({
   savedSearches = [],
   applied = {},
   searchQuery = "",
+  initialTab = "",
 }: {
   jobs: Job[];
   savedIds: string[];
   mySkills?: string[];
   searchQuery?: string;
+  // Which tab to open on load (e.g. "Saved Jobs" when arriving via ?saved=1).
+  initialTab?: string;
   // When true (the dashboard "Jobs you might like"), the feed shows ONLY jobs
   // relevant to the freelancer's category/skills. When false (the search
   // page), all results are shown, with the best matches ranked first.
@@ -116,7 +119,9 @@ export function FreelancerJobFeed({
     "Saved Jobs",
   ];
 
-  const [tab, setTab] = useState<string>("Best Matches");
+  const [tab, setTab] = useState<string>(
+    initialTab && TABS.includes(initialTab) ? initialTab : "Best Matches"
+  );
   const [saved, setSaved] = useState<Set<string>>(new Set(savedIds));
   // Disliked jobs collapse in place (showing the reason + an Expand link),
   // exactly like Upwork — they are NOT removed from the feed.

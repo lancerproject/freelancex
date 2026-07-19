@@ -652,14 +652,8 @@ async function FreelancerDashboard({
               />
             </div>
           </form>
-          <p className="text-sm text-muted-foreground mb-6">
-            Saved Searches:{" "}
-            <Link href="/jobs" className="text-primary hover:underline">
-              {savedSearches.length > 0 ? savedSearches.length : "Any"}
-            </Link>
-          </p>
 
-          <h2 className="text-2xl font-bold text-foreground mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4 mt-6">
             Jobs you might like
           </h2>
 

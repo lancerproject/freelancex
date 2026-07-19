@@ -79,7 +79,7 @@ const FREELANCER_MENUS: Menu[] = [
       {
         items: [
           { label: "Find work", href: "/jobs" },
-          { label: "Saved jobs", href: "/jobs?saved=1" },
+          { label: "Saved jobs", href: "/jobs?tab=saved" },
           { label: "Proposals and offers", href: "/freelancer" },
         ],
       },
