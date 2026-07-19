@@ -40,6 +40,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.7,
       });
     }
+
+    // Open jobs are publicly viewable (logged-out) — index them too.
+    const { data: jobs } = await supabase
+      .from("jobs")
+      .select("id, created_at")
+      .or("status.eq.open,status.is.null")
+      .order("created_at", { ascending: false })
+      .limit(5000);
+    for (const j of jobs ?? []) {
+      entries.push({
+        url: `${BASE}/jobs/${j.id}`,
+        lastModified: j.created_at ? new Date(j.created_at) : undefined,
+        changeFrequency: "daily",
+        priority: 0.6,
+      });
+    }
   } catch {
     // If the DB isn't reachable at build time, ship the static entries only.
   }

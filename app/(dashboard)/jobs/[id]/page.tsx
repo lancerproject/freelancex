@@ -52,7 +52,6 @@ export default async function JobDetailsPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
   const { data: job } = await supabase
     .from("jobs")
@@ -60,6 +59,14 @@ export default async function JobDetailsPage({
     .eq("id", id)
     .single();
   if (!job) notFound();
+
+  // Logged-out visitors get a read-only PUBLIC view so jobs can be browsed and
+  // indexed before sign-up (Upwork parity + SEO). Drafts / non-open jobs are
+  // never exposed publicly. All the personalized logic below requires a user.
+  if (!user) {
+    if (job.status && job.status !== "open") redirect("/login");
+    return <PublicJobView job={job} />;
+  }
 
   const isOwner = user.id === job.client_id;
 
@@ -1311,5 +1318,162 @@ function EmptyState({
       <p className="text-xl font-semibold text-foreground">{title}</p>
       <p className="text-muted-foreground text-sm mt-2">{sub}</p>
     </div>
+  );
+}
+
+/* ======================= PUBLIC (LOGGED-OUT) VIEW =======================
+   Read-only job view for visitors who aren't signed in. Shows the same public
+   job details a freelancer sees, but every action (Apply / Save) routes to
+   sign-in. No personalized data (saved state, applied state, bid range) is
+   fetched here. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function PublicJobView({ job }: { job: any }) {
+  const id = job.id as string;
+  const skillList = String(job.skills || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const ci = await getClientInfo(job.client_id);
+
+  // Other open jobs by this client (public, read-only).
+  const supabase = await createClient();
+  const { data: otherOpenJobs } = await supabase
+    .from("jobs")
+    .select("id, title, budget")
+    .eq("client_id", job.client_id)
+    .or("status.eq.open,status.is.null")
+    .neq("id", id)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  const loginApply = `/login?redirect=${encodeURIComponent(`/jobs/${id}/proposal`)}`;
+  const loginView = `/login?redirect=${encodeURIComponent(`/jobs/${id}`)}`;
+
+  return (
+    <main className="min-h-screen px-4 lg:px-12 py-8 w-full">
+      <div className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
+        {/* ---------------- Main column ---------------- */}
+        <div className="rounded-2xl border border-border bg-card p-6 lg:p-8">
+          <h1 className="text-3xl font-bold text-foreground">{job.title}</h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            Posted {relativePosted(job.created_at)} · 📍{" "}
+            {talentLocationLabel(job)}
+          </p>
+
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mt-6 mb-2">
+            Summary
+          </h2>
+          <JobDescription text={job.description || ""} />
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-6 border-t border-border pt-6">
+            <div>
+              <p className="text-xs text-muted-foreground">Budget</p>
+              <p className="text-foreground font-medium">
+                ${job.budget} · Fixed-price
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Experience level</p>
+              <p className="text-foreground font-medium">
+                {labelFor(EXPERIENCE_LEVELS, job.experience_level) ||
+                  "Intermediate"}
+              </p>
+            </div>
+            {job.duration && (
+              <div>
+                <p className="text-xs text-muted-foreground">Duration</p>
+                <p className="text-foreground font-medium">
+                  {labelFor(DURATIONS, job.duration) || job.duration}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {skillList.length > 0 && (
+            <>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mt-8 mb-2">
+                Skills and expertise
+              </h2>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {skillList.map((s) => (
+                  <span
+                    key={s}
+                    className="bg-secondary text-secondary-foreground rounded-full px-3 py-1 text-sm"
+                  >
+                    {s}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+
+          {(job.english_level || job.preferred_qualifications) && (
+            <>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mt-8 mb-2">
+                Preferred qualifications
+              </h2>
+              <div className="text-sm space-y-1">
+                {job.english_level && (
+                  <p className="text-muted-foreground">
+                    English level:{" "}
+                    <span className="text-foreground font-medium">
+                      {{
+                        conversational: "Conversational",
+                        fluent: "Fluent",
+                        native: "Native or Bilingual",
+                      }[job.english_level as string] || job.english_level}
+                    </span>
+                  </p>
+                )}
+                {job.preferred_qualifications && (
+                  <p className="text-foreground/90 whitespace-pre-wrap">
+                    {job.preferred_qualifications}
+                  </p>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ---------------- Sidebar ---------------- */}
+        <aside className="space-y-5">
+          <div className="rounded-2xl border border-border bg-card p-6 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Sign in to apply for this job, save it, and message the client.
+            </p>
+            <Link
+              href={loginApply}
+              className="block text-center bg-primary text-primary-foreground rounded-full py-3 font-semibold hover:opacity-90"
+            >
+              Apply now
+            </Link>
+            <Link
+              href={loginView}
+              className="block text-center w-full rounded-full py-2.5 font-medium border border-border text-foreground hover:bg-secondary"
+            >
+              ♡ Save job
+            </Link>
+            <p className="text-xs text-center text-muted-foreground">
+              New to Xwork?{" "}
+              <Link
+                href="/register"
+                className="text-primary hover:underline font-medium"
+              >
+                Create a free account
+              </Link>
+            </p>
+          </div>
+
+          {ci && (
+            <div className="rounded-2xl border border-border bg-card p-6">
+              <AboutTheClient ci={ci} />
+            </div>
+          )}
+
+          <OtherOpenJobs jobs={otherOpenJobs ?? []} />
+        </aside>
+      </div>
+    </main>
   );
 }
