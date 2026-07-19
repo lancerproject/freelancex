@@ -182,6 +182,50 @@ export function IdentityVerification({
     return false;
   };
 
+  // ---- Native file capture (RELIABLE on every device) ----
+  // Tapping a file input with capture="environment"/"user" opens the phone's
+  // real camera app (or gallery), which always works — unlike getUserMedia,
+  // which is unreliable in mobile browsers/in-app webviews. This is the primary
+  // capture path; the live preview below is an optional fallback.
+  const onPickIdFile = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    set: (s: Shot) => void,
+    label: string
+  ) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    stopCamera();
+    await uploadShot(file, URL.createObjectURL(file), set, label);
+  };
+
+  const onPickSelfieFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    stopCamera();
+    const preview = URL.createObjectURL(file);
+    const ok = await uploadShot(file, preview, setSelfie, "selfie");
+    if (!ok) return;
+    setBusy("Checking your photo…");
+    const api = await loadFaceApi();
+    if (!api) {
+      setFaceScore(null);
+      setBusy("");
+      return;
+    }
+    const [selfieD, profD, idD] = await Promise.all([
+      descriptor(api, preview),
+      profilePhoto ? descriptor(api, profilePhoto) : Promise.resolve(null),
+      front ? descriptor(api, front.preview) : Promise.resolve(null),
+    ]);
+    const scores: number[] = [];
+    if (profD) scores.push(matchPct(api, selfieD, profD));
+    if (idD) scores.push(matchPct(api, selfieD, idD));
+    setFaceScore(scores.length ? Math.round(Math.min(...scores)) : 0);
+    setBusy("");
+  };
+
   // Capture an ID side from the (rear) camera.
   const captureId = async (set: (s: Shot) => void, label: string) => {
     const shot = await captureFrame(`${label}.jpg`);
@@ -361,55 +405,74 @@ export function IdentityVerification({
           />
           <button
             type="button"
-            onClick={() => {
-              set(null);
-              startCamera("environment");
-            }}
+            onClick={() => set(null)}
             className="text-sm text-primary hover:underline mt-2"
           >
             Retake
           </button>
         </div>
       ) : (
-        <div>
-          <div className="relative w-full max-w-sm">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full rounded-lg border border-border bg-black aspect-[4/3] object-cover"
+        <div className="space-y-3">
+          {/* Primary: native camera / photo picker — works on every device */}
+          <label className="inline-flex items-center gap-2 bg-primary text-primary-foreground rounded-full px-5 py-2.5 text-sm font-semibold hover:opacity-90 cursor-pointer">
+            📷 Take photo of your ID
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => onPickIdFile(e, set, label)}
             />
-            {/* ID guide frame */}
-            <div className="pointer-events-none absolute inset-6 rounded-xl border-2 border-white/80" />
-          </div>
-          <div className="flex gap-3 mt-3">
-            {!camOn ? (
-              <button
-                type="button"
-                onClick={() => startCamera("environment")}
-                className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-semibold hover:opacity-90"
-              >
-                Start camera
-              </button>
-            ) : !camReady ? (
-              <button
-                type="button"
-                disabled
-                className="border border-border rounded-full px-4 py-2 text-sm opacity-60"
-              >
-                Starting camera…
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => captureId(set, label)}
-                className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-semibold hover:opacity-90"
-              >
-                Capture
-              </button>
-            )}
-          </div>
+          </label>
+          <p className="text-xs text-muted-foreground">
+            Opens your camera — or pick a clear photo from your gallery.
+          </p>
+
+          {/* Fallback: in-browser live camera preview */}
+          <details className="mt-1">
+            <summary className="text-sm text-primary cursor-pointer hover:underline">
+              Or use the live camera
+            </summary>
+            <div className="mt-3">
+              <div className="relative w-full max-w-sm">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full rounded-lg border border-border bg-black aspect-[4/3] object-cover"
+                />
+                <div className="pointer-events-none absolute inset-6 rounded-xl border-2 border-white/80" />
+              </div>
+              <div className="flex gap-3 mt-3">
+                {!camOn ? (
+                  <button
+                    type="button"
+                    onClick={() => startCamera("environment")}
+                    className="border border-border rounded-full px-4 py-2 text-sm hover:bg-secondary"
+                  >
+                    Start camera
+                  </button>
+                ) : !camReady ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="border border-border rounded-full px-4 py-2 text-sm opacity-60"
+                  >
+                    Starting camera…
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => captureId(set, label)}
+                    className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-semibold hover:opacity-90"
+                  >
+                    Capture
+                  </button>
+                )}
+              </div>
+            </div>
+          </details>
         </div>
       )}
     </div>
@@ -602,62 +665,85 @@ export function IdentityVerification({
           </p>
 
           {!selfie ? (
-            <div>
-              <div className="relative w-full max-w-xs mx-auto">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full rounded-full border border-border bg-black aspect-square object-cover"
+            <div className="space-y-3">
+              {/* Primary: native front-camera selfie — reliable everywhere */}
+              <label className="inline-flex items-center gap-2 bg-primary text-primary-foreground rounded-full px-5 py-2.5 text-sm font-semibold hover:opacity-90 cursor-pointer">
+                🤳 Take a selfie
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="user"
+                  className="hidden"
+                  onChange={onPickSelfieFile}
                 />
-                {/* Oval face guide */}
-                <div className="pointer-events-none absolute inset-4 rounded-full border-2 border-white/80" />
-                {countdown > 0 && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-6xl font-bold text-white drop-shadow-lg">
-                      {countdown}
-                    </span>
+              </label>
+              <p className="text-xs text-muted-foreground">
+                Opens your front camera. Make sure your face is clear and
+                well-lit.
+              </p>
+
+              {/* Fallback: in-browser live selfie */}
+              <details className="mt-1">
+                <summary className="text-sm text-primary cursor-pointer hover:underline">
+                  Or use the live camera
+                </summary>
+                <div className="mt-3">
+                  <div className="relative w-full max-w-xs mx-auto">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full rounded-full border border-border bg-black aspect-square object-cover"
+                    />
+                    <div className="pointer-events-none absolute inset-4 rounded-full border-2 border-white/80" />
+                    {countdown > 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-6xl font-bold text-white drop-shadow-lg">
+                          {countdown}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              <div className="flex gap-3 mt-4 justify-center">
-                {!camOn ? (
-                  <button
-                    type="button"
-                    onClick={() => startCamera("user")}
-                    className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-semibold hover:opacity-90"
-                  >
-                    Start camera
-                  </button>
-                ) : !camReady ? (
-                  <button
-                    type="button"
-                    disabled
-                    className="border border-border rounded-full px-4 py-2 text-sm opacity-60"
-                  >
-                    Starting camera…
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      disabled={countdown > 0}
-                      onClick={startSelfieCountdown}
-                      className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-60"
-                    >
-                      {countdown > 0 ? `Capturing in ${countdown}…` : "Start"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={captureSelfie}
-                      className="border border-border rounded-full px-4 py-2 text-sm hover:bg-secondary"
-                    >
-                      Capture now
-                    </button>
-                  </>
-                )}
-              </div>
+                  <div className="flex gap-3 mt-4 justify-center">
+                    {!camOn ? (
+                      <button
+                        type="button"
+                        onClick={() => startCamera("user")}
+                        className="border border-border rounded-full px-4 py-2 text-sm hover:bg-secondary"
+                      >
+                        Start camera
+                      </button>
+                    ) : !camReady ? (
+                      <button
+                        type="button"
+                        disabled
+                        className="border border-border rounded-full px-4 py-2 text-sm opacity-60"
+                      >
+                        Starting camera…
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          disabled={countdown > 0}
+                          onClick={startSelfieCountdown}
+                          className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-60"
+                        >
+                          {countdown > 0 ? `Capturing in ${countdown}…` : "Start"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={captureSelfie}
+                          className="border border-border rounded-full px-4 py-2 text-sm hover:bg-secondary"
+                        >
+                          Capture now
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </details>
             </div>
           ) : (
             <div className="text-center">
@@ -672,7 +758,6 @@ export function IdentityVerification({
                 onClick={() => {
                   setSelfie(null);
                   setFaceScore(null);
-                  startCamera("user");
                 }}
                 className="block mx-auto text-sm text-primary hover:underline mt-3"
               >
