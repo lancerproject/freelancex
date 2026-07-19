@@ -47,50 +47,138 @@ export const CONTENT_PAGES: Record<string, ContentPage> = {
   },
   terms: {
     title: "Terms of Service",
-    subtitle: "The simple agreement for using Xwork. Last updated June 2026.",
+    subtitle:
+      "The agreement between you and Xwork. Please read it — using Xwork means you accept it. Last updated July 2026.",
     sections: [
       {
-        heading: "1. Welcome to Xwork",
+        heading: "1. Introduction and acceptance",
         body: [
-          "Xwork is a marketplace that connects clients who want work done with freelancers who do it. By creating an account you agree to these terms. We've kept them short and readable on purpose.",
+          "Welcome to Xwork. These Terms of Service (the “Terms”) are a legal agreement between you and Xwork (“Xwork”, “we”, “us”) governing your access to and use of the Xwork website, apps and services (together, the “Platform”). They work together with our User Agreement, Privacy Policy and Acceptable Use Policy, which are part of these Terms by reference.",
+          "By creating an account, or by accessing or using the Platform, you confirm that you have read, understood and agree to be bound by these Terms. If you do not agree, please do not use Xwork. If you use the Platform on behalf of a company or other organisation, you confirm that you are authorised to accept these Terms on its behalf.",
         ],
       },
       {
-        heading: "2. Your account",
+        heading: "2. Definitions",
         body: [
-          "You can join as a client, a freelancer, or both (with separate accounts). Please give accurate information and keep your password safe. You're responsible for activity on your account.",
-          "You must be at least 18 years old to use Xwork.",
+          "“Client” means a user who posts jobs and hires freelancers. “Freelancer” means a user who offers services and applies to jobs. “User” means anyone with an Xwork account. “Contract” means an agreement between a Client and a Freelancer for services arranged through the Platform. “Content” means anything you post, upload or send through Xwork.",
         ],
       },
       {
-        heading: "3. Posting jobs and applying",
+        heading: "3. Who can use Xwork",
         body: [
-          "Clients can post fixed-price jobs for free. Freelancers can apply to jobs and send proposals. Be honest and respectful in everything you post — that's really the main rule.",
+          "You must be at least 18 years old and able to form a binding contract to use Xwork. You may join as a Client, a Freelancer, or both. You agree to provide accurate, current and complete information and to keep it up to date.",
+          "One person or organisation may hold only the accounts we permit, and identity verification (where required) must reflect the real person or entity behind the account. Creating accounts to evade a suspension, or impersonating anyone, is not allowed.",
         ],
       },
       {
-        heading: "4. Payments and fees",
+        heading: "4. Your account and security",
         body: [
-          "Clients pay a 2% service fee and freelancers pay a 10% service fee. There are no hidden charges and no cost to get started. You only pay when money changes hands.",
-          "Payments for fixed-price work are released as milestones are approved.",
+          "You are responsible for keeping your login credentials confidential and for all activity that happens under your account. Tell us immediately if you suspect unauthorised use. We offer tools such as two-step verification and the ability to sign out of other devices — we strongly encourage you to use them.",
+          "You may not share, sell or transfer your account to anyone else without our written consent.",
         ],
       },
       {
-        heading: "5. Being a good community member",
+        heading: "5. Xwork's role — we are a marketplace, not a party to your Contracts",
         body: [
-          "Don't post anything illegal, harmful, or misleading, and don't try to take payments off-platform to avoid fees. Beyond that, we trust you to act in good faith.",
+          "Xwork provides a venue where Clients and Freelancers can find each other, agree terms, communicate, and pay or get paid. We are not an employer, agency, or party to any Contract between users, and we do not supervise, direct, or control a Freelancer's work.",
+          "Clients and Freelancers are solely responsible for the Contracts they enter into, including scope, quality, timelines, and their own legal, tax and regulatory obligations. Any dispute about the work itself is between the Client and the Freelancer, although we provide dispute-resolution tools to help (see section 9).",
         ],
       },
       {
-        heading: "6. Closing your account",
+        heading: "6. Posting jobs, proposals and Contracts",
         body: [
-          "You can close your account at any time from your settings. We'd hate to see you go, but there's no penalty and no lock-in.",
+          "Clients may post fixed-price jobs at no charge and set the budget, scope and any screening questions. Freelancers may submit proposals and, if selected, receive an offer that becomes a Contract once accepted.",
+          "Everything you post must be accurate, lawful and your own to share. Job posts and proposals must describe real work and real intentions. We may remove Content, or decline to show a job or proposal, if it breaks these Terms or our Acceptable Use Policy.",
         ],
       },
       {
-        heading: "7. Changes",
+        heading: "7. Payments, escrow and fees",
         body: [
-          "If we update these terms we'll let you know. Continuing to use Xwork means you accept the latest version.",
+          "Fixed-price work on Xwork is funded into escrow and released as milestones are approved, so Freelancers know the money is set aside and Clients only release it for accepted work. Where a milestone is not actively approved, our published auto-approval, hold and cancellation windows apply.",
+          "Freelancers pay a service fee on what they earn: 10% on the standard plan, or 5% with a Pro membership. The fee is deducted from the Freelancer's earnings at the time a payment is processed. Clients can post jobs and hire without a platform fee; any payment-processing charges, where they apply, are shown to you before you confirm a payment.",
+          "You agree not to take payments, or arrange to be paid, outside the Platform in order to avoid fees or escrow protection. Doing so removes your protections and may lead to account action.",
+        ],
+      },
+      {
+        heading: "8. Taxes",
+        body: [
+          "You are responsible for determining and paying any taxes that apply to your earnings or purchases, and for any tax reporting required where you live or do business. Xwork is not responsible for your tax obligations. Amounts shown on the Platform are exclusive of taxes unless we say otherwise.",
+        ],
+      },
+      {
+        heading: "9. Refunds and disputes",
+        body: [
+          "If something goes wrong on a Contract, Clients and Freelancers should first try to resolve it directly through Messages. Where that isn't possible, either party can open a dispute and our team will review the available evidence and the escrow record to help reach a fair outcome.",
+          "Refunds, releases and reversals are handled according to the state of the milestone and our dispute process. Our decisions on platform disputes are made in good faith to keep the marketplace fair, but they do not replace any legal rights the parties may have against each other.",
+        ],
+      },
+      {
+        heading: "10. Acceptable use and prohibited conduct",
+        body: [
+          "You agree to follow our Acceptable Use Policy. In short: don't post anything illegal, deceptive, infringing, hateful or harmful; don't spam, scrape, or interfere with the Platform's operation; don't circumvent fees or escrow; don't harass other users; and don't misuse identity verification or reviews.",
+          "We use automated and human review to keep Xwork safe. Sharing off-platform contact or payment details to move work off Xwork, and other attempts to bypass these Terms, may trigger warnings, feature limits, suspension or permanent account closure.",
+        ],
+      },
+      {
+        heading: "11. Content and intellectual property",
+        body: [
+          "You keep ownership of the Content you create. By posting Content on Xwork you grant us a non-exclusive, worldwide, royalty-free licence to host, display and use it as needed to operate and promote the Platform.",
+          "Ownership of work delivered under a Contract is determined by the agreement between the Client and the Freelancer. Only deliver work you have the right to provide, and honour the licensing and ownership terms you agree with the other party. The Xwork name, logo and site design are our property and may not be copied or used without permission.",
+        ],
+      },
+      {
+        heading: "12. Confidentiality and privacy",
+        body: [
+          "Handle any confidential information or personal data another user entrusts to you responsibly, only for the purpose of your Contract, and in line with applicable data-protection law. Our own handling of your information is described in the Privacy Policy.",
+        ],
+      },
+      {
+        heading: "13. Identity verification and trust",
+        body: [
+          "To keep the marketplace safe and to enable secure payouts, we may ask you to verify your identity and to provide accurate location and contact details. Providing false verification information, or documents that are not your own, is a serious violation and may result in permanent account closure.",
+        ],
+      },
+      {
+        heading: "14. Suspension and termination",
+        body: [
+          "You can close your account at any time from your settings — there is no penalty and no lock-in, though you remain responsible for obligations already incurred (such as active Contracts and amounts owed).",
+          "We may suspend or terminate access if you breach these Terms, create risk for other users or the Platform, or where required by law. Where it is reasonable and lawful to do so, we'll aim to give you notice and a way to resolve the issue.",
+        ],
+      },
+      {
+        heading: "15. Disclaimers",
+        body: [
+          "The Platform is provided “as is” and “as available”. We do not guarantee that any Client will hire, that any Freelancer will deliver, or that the Platform will always be uninterrupted or error-free. We do not endorse any user and are not responsible for the conduct, quality, or output of any Client or Freelancer.",
+        ],
+      },
+      {
+        heading: "16. Limitation of liability",
+        body: [
+          "To the fullest extent permitted by law, Xwork is not liable for any indirect, incidental, special or consequential losses, or for lost profits, data or opportunities, arising from your use of the Platform or from any Contract between users. Nothing in these Terms limits liability that cannot be limited by law.",
+        ],
+      },
+      {
+        heading: "17. Indemnification",
+        body: [
+          "You agree to indemnify and hold Xwork harmless from claims, losses and expenses arising out of your Content, your use of the Platform, your Contracts with other users, or your breach of these Terms or of any law or third-party right.",
+        ],
+      },
+      {
+        heading: "18. Governing law and dispute resolution",
+        body: [
+          "These Terms are governed by the laws applicable where Xwork operates, without regard to conflict-of-laws rules. Disputes between you and Xwork should first be raised with our support team so we can try to resolve them informally. Where a formal process is needed, it will follow the mechanism described at sign-up or otherwise required by applicable law.",
+        ],
+      },
+      {
+        heading: "19. Changes to these Terms",
+        body: [
+          "We may update these Terms from time to time. When we make material changes we'll take reasonable steps to let you know, for example by notice on the Platform or by email. Continuing to use Xwork after an update means you accept the revised Terms.",
+        ],
+      },
+      {
+        heading: "20. Contact",
+        body: [
+          "Questions about these Terms? Reach us any time through the Help Center or our Contact page and we'll be glad to help.",
         ],
       },
     ],

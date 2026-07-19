@@ -78,8 +78,10 @@ const FREELANCER_MENUS: Menu[] = [
     groups: [
       {
         items: [
-          { label: "Find work", href: "/jobs" },
-          { label: "Saved jobs", href: "/jobs?tab=saved" },
+          // Find work → the freelancer home feed (force-dynamic, so it reloads
+          // with every newly-posted job). Saved jobs → same home, Saved tab.
+          { label: "Find work", href: "/dashboard" },
+          { label: "Saved jobs", href: "/dashboard?tab=saved" },
           { label: "Proposals and offers", href: "/freelancer" },
         ],
       },

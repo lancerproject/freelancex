@@ -19,12 +19,18 @@ import { ProBadge } from "@/components/pro-badge";
 import { getProposalHub } from "@/lib/proposal-hub";
 import { FlashBanner } from "@/components/flash-banner";
 
+// Always render fresh so clicking "Find work" reloads the home feed with every
+// newly-posted job (no stale client Router Cache between visits).
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ joberror?: string; posted?: string }>;
+  searchParams: Promise<{ joberror?: string; posted?: string; tab?: string }>;
 }) {
   const sp = await searchParams;
+  // "Saved jobs" nav links here with ?tab=saved → open the feed's Saved Jobs tab.
+  const initialTab = sp.tab === "saved" ? "Saved Jobs" : "";
   const supabase = await createClient();
 
   const {
@@ -92,6 +98,7 @@ export default async function DashboardPage({
           userId={user.id}
           name={displayName}
           profile={profile}
+          initialTab={initialTab}
         />
       )}
     </>
@@ -532,11 +539,13 @@ async function FreelancerDashboard({
   userId,
   name,
   profile,
+  initialTab = "",
 }: {
   userId: string;
   name: string | undefined;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   profile: any;
+  initialTab?: string;
 }) {
   const supabase = await createClient();
 
@@ -662,6 +671,7 @@ async function FreelancerDashboard({
             savedIds={savedIds}
             applied={applied}
             personalized
+            initialTab={initialTab}
             savedSearches={savedSearches}
             mySkills={[
               String(profile?.skills || ""),
