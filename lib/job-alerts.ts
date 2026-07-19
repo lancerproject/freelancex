@@ -27,23 +27,25 @@ type Job = {
   category: string | null;
   description: string | null;
   client_id: string;
+  experience_level?: string | null;
 };
 
 export async function sendJobAlerts(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   admin: any,
   job: Job
-): Promise<void> {
+): Promise<string[]> {
+  const notified: string[] = [];
   // Only verified clients trigger alerts.
   const { data: client } = await admin
     .from("profiles")
     .select("full_name, payment_verified")
     .eq("id", job.client_id)
     .maybeSingle();
-  if (!client?.payment_verified) return;
+  if (!client?.payment_verified) return notified;
 
   const jobTokens = tokenize(job.skills, job.category);
-  if (jobTokens.size === 0) return;
+  if (jobTokens.size === 0) return notified;
 
   // Candidate Pro freelancers.
   const { data: pros } = await admin
@@ -80,6 +82,59 @@ export async function sendJobAlerts(
       `${clientName} posted "${job.title}"${
         budget ? ` with a $${budget} budget` : ""
       }. Skills: ${job.skills || job.category || "—"}. It matches your profile.`,
+      `/jobs/${job.id}`
+    );
+    notified.push(f.id);
+  }
+  return notified;
+}
+
+// Saved-search alerts (free for all freelancers). When a job is posted, notify
+// everyone whose SAVED SEARCH matches it — deduped, and skipping anyone already
+// alerted by the Pro profile-skill match above. Honours the job_alerts pref.
+export async function sendSavedSearchAlerts(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any,
+  job: Job,
+  alreadyNotified: string[] = []
+): Promise<void> {
+  const { data: searches } = await admin
+    .from("saved_searches")
+    .select("user_id, query, category, experience_level, min_budget");
+  if (!searches?.length) return;
+
+  const hay = `${job.title || ""} ${job.description || ""} ${
+    job.skills || ""
+  }`.toLowerCase();
+  const jobBudget = Number(job.budget) || 0;
+  const skip = new Set([...alreadyNotified, job.client_id]);
+  const done = new Set<string>();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const matches = (s: any): boolean => {
+    if (s.category && job.category !== s.category) return false;
+    if (s.experience_level && job.experience_level !== s.experience_level)
+      return false;
+    if (s.min_budget != null && jobBudget < Number(s.min_budget)) return false;
+    if (s.query) {
+      const toks = String(s.query).toLowerCase().split(/\s+/).filter(Boolean);
+      if (!toks.every((t: string) => hay.includes(t))) return false;
+    }
+    return true;
+  };
+
+  for (const s of searches) {
+    if (skip.has(s.user_id) || done.has(s.user_id)) continue;
+    if (!matches(s)) continue;
+    done.add(s.user_id);
+    await notify(
+      admin,
+      s.user_id,
+      "job_alert",
+      `New job matches your saved search: ${job.title}`,
+      `A new job "${job.title}"${
+        jobBudget ? ` ($${jobBudget})` : ""
+      } matches a search you saved. Take a look before it fills up.`,
       `/jobs/${job.id}`
     );
   }

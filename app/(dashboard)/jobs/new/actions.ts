@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { notify } from "@/lib/notify";
-import { sendJobAlerts } from "@/lib/job-alerts";
+import { sendJobAlerts, sendSavedSearchAlerts } from "@/lib/job-alerts";
 import { redirect } from "next/navigation";
 
 // status is bound at the call site: "open" (publish) or "draft" (save for later)
@@ -63,7 +63,7 @@ export async function createJob(status: string, formData: FormData) {
       client_id: user.id,
     })
     .select(
-      "id, title, budget, skills, category, description, client_id"
+      "id, title, budget, skills, category, description, client_id, experience_level"
     )
     .single();
 
@@ -86,7 +86,10 @@ export async function createJob(status: string, formData: FormData) {
     // failure here must never block the post flow.
     if (created) {
       try {
-        await sendJobAlerts(createAdminClient(), created);
+        const admin = createAdminClient();
+        const notified = await sendJobAlerts(admin, created);
+        // Saved-search alerts for everyone whose saved search matches (free).
+        await sendSavedSearchAlerts(admin, created, notified);
       } catch (e) {
         console.error("job alerts failed:", e);
       }
