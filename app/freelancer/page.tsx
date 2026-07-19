@@ -79,7 +79,7 @@ export default async function MyProposalsPage({
       )}
 
       {/* Tabs — Offers badge highlights red when pending; Invites blue. */}
-      <div className="flex gap-6 border-b border-border mb-6 text-sm overflow-x-auto">
+      <div className="flex gap-6 border-b border-border mb-6 text-sm overflow-x-auto hide-scrollbar">
         {TABS.map((t) => {
           const n = countFor(t.key);
           const highlight =

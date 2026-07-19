@@ -428,7 +428,7 @@ export function FreelancerJobFeed({
         <div className="min-w-0">
           {/* Tabs + Sort + (mobile) Filters */}
           <div className="flex items-center justify-between border-b border-border gap-3">
-            <div className="flex gap-6 text-sm overflow-x-auto">
+            <div className="flex gap-6 text-sm overflow-x-auto hide-scrollbar">
               {TABS.map((t) => (
                 <button
                   key={t}

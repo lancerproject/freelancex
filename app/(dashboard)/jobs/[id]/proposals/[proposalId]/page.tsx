@@ -233,7 +233,7 @@ export default async function ProposalDetailPage({
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-6 border-b border-border mt-8 mb-6 text-sm overflow-x-auto">
+      <div className="flex gap-6 border-b border-border mt-8 mb-6 text-sm overflow-x-auto hide-scrollbar">
         {TABS.map((t) => (
           <Link
             key={t.key}

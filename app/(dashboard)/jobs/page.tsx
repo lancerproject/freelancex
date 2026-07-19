@@ -5,6 +5,10 @@ import { FreelancerJobFeed } from "@/components/freelancer-job-feed";
 import { CATEGORIES } from "@/lib/categories";
 import { saveSearch, deleteSavedSearch } from "./search-actions";
 
+// Always render fresh so clicking "Find work" shows every newly-posted job
+// immediately (no stale client Router Cache between visits).
+export const dynamic = "force-dynamic";
+
 type SearchParams = {
   q?: string;
   category?: string;

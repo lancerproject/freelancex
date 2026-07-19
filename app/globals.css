@@ -148,3 +148,16 @@
     cursor: not-allowed;
   }
 }
+
+/* Hide the native scrollbar on horizontally-scrolling strips (e.g. tab rows).
+   Tailwind's `overflow-x-auto` makes the browser compute `overflow-y` to
+   `auto` as well, so a 1px vertical overflow (the tab underline) makes Windows
+   render a tiny vertical scrollbar showing only its ▲▼ arrow buttons. Hiding
+   the scrollbar removes that artifact without clipping any content. */
+.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge/IE */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
+}
