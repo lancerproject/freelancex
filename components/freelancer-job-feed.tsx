@@ -122,6 +122,13 @@ export function FreelancerJobFeed({
   const [tab, setTab] = useState<string>(
     initialTab && TABS.includes(initialTab) ? initialTab : "Best Matches"
   );
+  // When the URL's tab changes (e.g. clicking "Saved jobs" in the nav while
+  // already on the home feed), switch to it without needing a reload. Only acts
+  // on a valid, non-empty initialTab so it never overrides a manual tab click.
+  useEffect(() => {
+    if (initialTab && TABS.includes(initialTab)) setTab(initialTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTab]);
   const [saved, setSaved] = useState<Set<string>>(new Set(savedIds));
   // Disliked jobs collapse in place (showing the reason + an Expand link),
   // exactly like Upwork — they are NOT removed from the feed.
