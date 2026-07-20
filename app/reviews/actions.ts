@@ -95,5 +95,7 @@ export async function submitReview(
     }
   }
 
-  redirect(`/contracts/${contractId}`);
+  // After leaving feedback, land on the All contracts list (which shows the
+  // ended contract with its rating) — matches the expected flow.
+  redirect("/contracts?feedback=submitted");
 }

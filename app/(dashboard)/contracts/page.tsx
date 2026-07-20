@@ -8,7 +8,12 @@ import { StarRating } from "@/components/star-rating";
 export default async function ContractsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; sort?: string; status?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    sort?: string;
+    status?: string;
+    feedback?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -95,6 +100,14 @@ export default async function ContractsPage({
       <h1 className="text-3xl font-bold text-foreground mb-6">
         {isClientUser ? "All contracts" : "Your contracts"}
       </h1>
+
+      {sp.feedback === "submitted" && (
+        <div className="mb-6 rounded-lg border border-primary/30 bg-primary/10 text-primary p-3 text-sm">
+          ✓ Thanks — your feedback was submitted. It appears on your
+          counterpart&apos;s profile once you both review, or when the 14-day
+          window ends.
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-3 mb-3">
         <form method="get" className="flex-1 min-w-[240px]">
