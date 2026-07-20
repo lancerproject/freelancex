@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { redirect } from "next/navigation";
 import { WizardAccountMenu } from "@/components/wizard-account-menu";
 import { DetailsStep } from "@/components/details-step";
@@ -13,11 +14,7 @@ export default async function CreateProfileDetailsPage() {
 
   // Country autofills from the profile (set at signup) but stays changeable.
   // Pre-fill any details already saved so editing doesn't lose them.
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await loadOwnProfile(user.id);
 
   return (
     <main className="min-h-screen bg-white text-neutral-900">

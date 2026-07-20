@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { redirect } from "next/navigation";
 import { ContactAccountCard } from "@/components/contact-account-card";
 import { ContactLocationCard } from "@/components/contact-location-card";
@@ -23,11 +24,7 @@ export default async function ContactInfoPage({
     /* ignore */
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await loadOwnProfile(user.id);
 
   return (
     <div className="space-y-6">

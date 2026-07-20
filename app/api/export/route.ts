@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { loadOwnProfile } from "@/lib/own-profile";
 
 // "Download my data" — everything Xwork stores about the signed-in user, as
 // one JSON file. Queries run through the user's own session (RLS), so this
@@ -44,9 +45,7 @@ export async function GET() {
     supportTickets,
     notifications,
   ] = await Promise.all([
-    grab(
-      supabase.from("profiles").select("*").eq("id", user.id).maybeSingle()
-    ),
+    grab(loadOwnProfile(user.id).then((p) => ({ data: p }))),
     grab(
       supabase
         .from("proposals")

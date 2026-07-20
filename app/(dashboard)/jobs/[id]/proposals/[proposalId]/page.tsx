@@ -66,7 +66,9 @@ export default async function ProposalDetailPage({
   if (!job) notFound();
   if (job.client_id !== user.id) redirect(`/jobs/${id}`);
 
-  const { data: p } = await supabase
+  // Owner-gated above. Read the applicant's full profile via the service role
+  // (the authenticated role can't read sensitive profile columns cross-tenant).
+  const { data: p } = await createAdminClient()
     .from("proposals")
     .select("*, profiles ( * )")
     .eq("id", proposalId)

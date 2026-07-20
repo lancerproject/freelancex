@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { redirect } from "next/navigation";
 import { TwoFactor } from "@/components/two-factor";
 import { ChangePassword } from "@/components/change-password-modal";
@@ -38,11 +39,7 @@ export default async function SecuritySettingsPage({
   const googleConnected = providers.includes("google");
   const appleConnected = providers.includes("apple");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("security_question, twofa_preferred_method, twofa_frequency")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await loadOwnProfile(user.id);
   const hasQuestion = !!profile?.security_question;
 
   const row = "flex items-center justify-between gap-4 py-5";

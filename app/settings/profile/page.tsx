@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { redirect } from "next/navigation";
 import { ProfileSettings } from "@/components/profile-settings";
 import { getMembership } from "@/lib/membership";
@@ -12,11 +13,7 @@ export default async function ProfileSettingsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await loadOwnProfile(user.id);
 
   const categories = Array.from(
     new Set(

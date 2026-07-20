@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import { notify } from "@/lib/notify";
+import { loadOwnProfile } from "@/lib/own-profile";
 
 /* ------------------------------------------------------------------ */
 /* Sectioned tax form (Tax residence / Taxpayer identification / TIN)  */
@@ -19,11 +20,7 @@ async function mergeTaxInfo(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "You're not signed in." };
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("tax_info")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await loadOwnProfile(user.id);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let info: Record<string, any> = {};

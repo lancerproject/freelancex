@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { createClient } from "../lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import ConditionalNavbar from "@/components/conditional-navbar";
 import { SupportWidget } from "@/components/support-widget";
 import { AppFooter } from "@/components/app-footer";
@@ -69,7 +70,7 @@ export default async function RootLayout({
         .from("conversations")
         .select("id")
         .or(`participant_1.eq.${userId},participant_2.eq.${userId}`),
-      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+      loadOwnProfile(userId).then((p) => ({ data: p })),
       supabase
         .from("notifications")
         .select("id, title, message, link, is_read, created_at")

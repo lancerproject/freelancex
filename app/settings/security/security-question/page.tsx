@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 import { SecurityQuestionForm } from "@/components/security-question-form";
+import { loadOwnProfile } from "@/lib/own-profile";
 
 export const metadata = { title: "Security question | Xwork" };
 
@@ -11,12 +12,7 @@ export default async function SecurityQuestionPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("security_question")
-    .eq("id", user.id)
-    .maybeSingle();
-
+  const profile = await loadOwnProfile(user.id);
   const current = profile?.security_question || "";
 
   return (

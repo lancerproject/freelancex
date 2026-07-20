@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { notFound, redirect } from "next/navigation";
 import { completeContract } from "@/app/proposals/actions";
 import {
@@ -289,11 +290,7 @@ export default async function ContractDetailsPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let companyInfo: any = null;
   if (tab === "details") {
-    const { data: meLegal } = await supabase
-      .from("profiles")
-      .select("id_legal_name, full_name")
-      .eq("id", user.id)
-      .maybeSingle();
+    const meLegal = await loadOwnProfile(user.id);
     myLegalName = meLegal?.id_legal_name || meLegal?.full_name || null;
     if (isFreelancer) {
       companyInfo = await getClientInfo(otherId).catch(() => null);

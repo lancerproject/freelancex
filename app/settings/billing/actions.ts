@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { notify } from "@/lib/notify";
+import { loadOwnProfile } from "@/lib/own-profile";
 
 type Result = { ok: boolean; error?: string };
 
@@ -28,11 +29,7 @@ export async function saveCard(paymentMethodId: string): Promise<Result> {
 
   try {
     const { ensureStripeCustomer, attachCard } = await import("@/lib/stripe");
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("email, stripe_customer_id")
-      .eq("id", user.id)
-      .maybeSingle();
+    const profile = await loadOwnProfile(user.id);
     const customerId = await ensureStripeCustomer(
       profile?.email ?? user.email ?? "",
       profile?.stripe_customer_id

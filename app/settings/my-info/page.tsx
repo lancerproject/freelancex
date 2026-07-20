@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { AccountInfo } from "@/components/account-info";
@@ -27,11 +28,7 @@ export default async function MyInfoPage({
     /* ignore */
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await loadOwnProfile(user.id);
 
   const fullName = profile?.full_name || profile?.username || "";
   const parts = fullName.trim().split(/\s+/).filter(Boolean);

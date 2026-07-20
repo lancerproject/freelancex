@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 import { BillingMethods } from "@/components/billing-methods";
+import { loadOwnProfile } from "@/lib/own-profile";
 
 const CLIENT_FEE = 0.02; // 2%
 
@@ -14,11 +15,7 @@ export default async function BillingSettingsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, card_brand, card_last4, paypal_email")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await loadOwnProfile(user.id);
   const isClient = profile?.role === "client";
 
   const money = (n: number) =>

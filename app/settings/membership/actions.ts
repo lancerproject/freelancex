@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { getFreelancerEarnings } from "@/lib/earnings";
 import { asPlan } from "@/lib/fees";
@@ -21,11 +22,7 @@ async function authedProfile() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { supabase, user: null, profile: null };
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await loadOwnProfile(user.id);
   return { supabase, user, profile };
 }
 

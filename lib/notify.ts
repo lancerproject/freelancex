@@ -23,7 +23,9 @@ export async function notify(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let prefs: any = null;
   try {
-    const { data: recipient } = await supabase
+    // Read the recipient (often a DIFFERENT user) via the service role — the
+    // authenticated role can't read notification_prefs cross-tenant.
+    const { data: recipient } = await createAdminClient()
       .from("profiles")
       .select("email, notification_prefs")
       .eq("id", userId)

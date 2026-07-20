@@ -120,7 +120,10 @@ export async function getProposalPanelData(jobId: string, proposalId: string) {
     .maybeSingle();
   if (!job || job.client_id !== user.id) return null;
 
-  const { data: p } = await supabase
+  // Owner-gated above (job.client_id === user.id). Read the applicant's full
+  // profile via the service role, since the authenticated role can't read
+  // sensitive profile columns cross-tenant.
+  const { data: p } = await createAdminClient()
     .from("proposals")
     .select("*, profiles ( * )")
     .eq("id", proposalId)

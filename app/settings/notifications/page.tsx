@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { redirect } from "next/navigation";
 import { NotificationSettings } from "@/components/notification-settings";
 import { withDefaults } from "@/lib/notification-prefs";
@@ -13,11 +14,7 @@ export default async function NotificationSettingsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await loadOwnProfile(user.id);
 
   const initial = withDefaults(profile?.notification_prefs ?? null);
   const isPro = getMembership(profile).isPro;

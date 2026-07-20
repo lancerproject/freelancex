@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "../../lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { redirect } from "next/navigation";
 import { createProfile } from "./actions";
 import { publishDraft } from "@/app/(dashboard)/jobs/actions";
@@ -43,11 +44,7 @@ export default async function DashboardPage({
 
   await createProfile();
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
+  const profile = await loadOwnProfile(user.id);
 
   // A freelancer who hasn't finished creating their profile is sent back to
   // resume the wizard — they can't land on the dashboard until it's published.

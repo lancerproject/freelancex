@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createHash, randomBytes } from "crypto";
@@ -55,11 +56,7 @@ export async function saveSecurityQuestion(
   const invalid = validateQuestionAnswer(question, answer);
   if (invalid) return invalid;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("security_answer_hash")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await loadOwnProfile(user.id);
 
   // FLOW 2: re-verify the current answer server-side (never trust the client).
   if (profile?.security_answer_hash) {
@@ -106,11 +103,7 @@ export async function verifyCurrentSecurityAnswer(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false };
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("security_answer_hash")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await loadOwnProfile(user.id);
   return { ok: verifyAnswer(profile?.security_answer_hash, answer) };
 }
 

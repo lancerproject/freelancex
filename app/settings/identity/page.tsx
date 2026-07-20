@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { IdentityVerification } from "@/components/identity-verification";
@@ -68,11 +69,7 @@ export default async function IdentityVerificationPage() {
   let reviewStatus: string | null = null;
   let reviewNote: string | null = null;
   try {
-    const { data: review } = await supabase
-      .from("profiles")
-      .select("id_review_status, id_review_note")
-      .eq("id", user.id)
-      .maybeSingle();
+    const review = await loadOwnProfile(user.id);
     reviewStatus = review?.id_review_status ?? null;
     reviewNote = review?.id_review_note ?? null;
   } catch {

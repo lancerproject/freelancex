@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { revalidatePath } from "next/cache";
 import { notify } from "@/lib/notify";
 import { getMembership } from "@/lib/membership";
@@ -136,11 +137,7 @@ export async function saveCustomUrl(
   const { supabase, user } = await authed();
   if (!user) return { ok: false, error: "Not signed in." };
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await loadOwnProfile(user.id);
   if (!getMembership(profile).isPro)
     return { ok: false, error: "Custom Profile URL is a Pro feature." };
 

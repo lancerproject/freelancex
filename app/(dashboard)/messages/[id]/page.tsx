@@ -64,7 +64,9 @@ export default async function ConversationPage({
 
   const { data: otherProfile } = await supabase
     .from("profiles")
-    .select("*")
+    .select(
+      "id, full_name, username, title, bio, avatar_url, role, location, country, timezone, time_zone, online_for_messages, out_of_office, out_of_office_until, last_active_at"
+    )
     .eq("id", otherUserId)
     .single();
   const otherOnline = !!otherProfile?.online_for_messages;

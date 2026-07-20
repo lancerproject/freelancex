@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { redirect } from "next/navigation";
 import { getMembership } from "@/lib/membership";
 import { getFreelancerEarnings } from "@/lib/earnings";
@@ -14,11 +15,7 @@ export default async function MembershipPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await loadOwnProfile(user.id);
 
   // Freelancer-only feature. Clients see a short note.
   if (profile?.role !== "freelancer") {

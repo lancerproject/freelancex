@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { redirect } from "next/navigation";
 import { WizardAccountMenu } from "@/components/wizard-account-menu";
 import { submitProfile } from "@/app/create-profile/actions";
@@ -42,11 +43,7 @@ export default async function PreviewProfilePage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await loadOwnProfile(user.id);
 
   const name = profile?.full_name || "Your name";
   const first = name.split(" ")[0];

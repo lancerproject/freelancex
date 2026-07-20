@@ -6,6 +6,7 @@
 
 import { createClient } from "@/lib/supabase-server";
 import { notify } from "@/lib/notify";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { redirect } from "next/navigation";
 
 async function authed() {
@@ -59,11 +60,7 @@ export async function saveMessageSettings(params: {
   const { supabase, user } = await authed();
   if (!user) return { ok: false, error: "You're not signed in." };
 
-  const { data: prof } = await supabase
-    .from("profiles")
-    .select("notification_prefs")
-    .eq("id", user.id)
-    .maybeSingle();
+  const prof = await loadOwnProfile(user.id);
   const prefs =
     prof?.notification_prefs && typeof prof.notification_prefs === "object"
       ? { ...prof.notification_prefs }

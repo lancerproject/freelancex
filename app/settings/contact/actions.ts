@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { notify } from "@/lib/notify";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { createHash, randomInt } from "crypto";
 
 // Updates the Account fields: first/last name, and (optionally) email.
@@ -224,11 +225,7 @@ export async function confirmPhoneCode(
     return { ok: false, error: "Enter the 6-digit code." };
   }
 
-  const { data: me } = await supabase
-    .from("profiles")
-    .select("phone_otp_hash, phone_otp_expires")
-    .eq("id", user.id)
-    .maybeSingle();
+  const me = await loadOwnProfile(user.id);
   if (!me?.phone_otp_hash || !me?.phone_otp_expires) {
     return { ok: false, error: "Request a new code first." };
   }
