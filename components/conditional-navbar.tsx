@@ -18,6 +18,10 @@ interface MenuGroup {
 interface Menu {
   label: string
   groups: MenuGroup[]
+  // When set, clicking the top-level label navigates here (and refreshes) —
+  // the dropdown still opens on hover. Used so "Find work" jumps to the home
+  // feed instead of only opening a menu.
+  href?: string
 }
 interface Notif {
   id: string
@@ -75,6 +79,7 @@ const CLIENT_MENUS: Menu[] = [
 const FREELANCER_MENUS: Menu[] = [
   {
     label: "Find work",
+    href: "/dashboard",
     groups: [
       {
         items: [
@@ -253,7 +258,19 @@ export default function ConditionalNavbar({
                 onMouseEnter={() => setHoverMenu(menu.label)}
                 onMouseLeave={() => setHoverMenu(null)}
               >
-                <button className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground flex items-center gap-1">
+                <button
+                  onClick={() => {
+                    if (menu.href) {
+                      setHoverMenu(null)
+                      // Navigate to the menu's home destination AND refresh, so
+                      // clicking "Find work" reloads the home feed with the
+                      // newest jobs even when you're already on that page.
+                      router.push(menu.href)
+                      router.refresh()
+                    }
+                  }}
+                  className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground flex items-center gap-1"
+                >
                   {menu.label}
                   <span className="text-xs">▾</span>
                 </button>
