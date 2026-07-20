@@ -45,22 +45,29 @@ export default async function AdminAnalyticsPage() {
       .from("profiles")
       .select("role, plan, id_verified, payment_verified, created_at, account_status"),
     admin
-      .from("job_payments")
-      .select("gross_amount, marketplace_fee_amount, net_amount, created_at"),
+      .from("escrow_transactions")
+      .select("type, amount, created_at"),
     admin.from("contracts").select("status, amount, created_at"),
     admin.from("jobs").select("status, created_at"),
     admin.from("proposals").select("*", { count: "exact", head: true }),
   ]);
 
   const P = profiles ?? [];
-  const Pay = pays ?? [];
+  const L = pays ?? []; // escrow ledger entries (source of truth for money)
   const C = contracts ?? [];
   const J = jobs ?? [];
 
-  // ---- Money (realized, from completed milestone payments) ----
-  const gmv = Pay.reduce((s, p) => s + num(p.gross_amount), 0);
-  const revenue = Pay.reduce((s, p) => s + num(p.marketplace_fee_amount), 0);
-  const netToFreelancers = Pay.reduce((s, p) => s + num(p.net_amount), 0);
+  // ---- Money (from the append-only escrow ledger) ----
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sumType = (types: string[]) =>
+    L.filter((e: any) => types.includes(e.type)).reduce(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (s: number, e: any) => s + num(e.amount),
+      0
+    );
+  const gmv = sumType(["fund"]); // gross value funded into escrow
+  const revenue = sumType(["fee_client", "fee_freelancer"]); // platform fees
+  const netToFreelancers = sumType(["release"]); // released to freelancers
   const takeRate = gmv > 0 ? (revenue / gmv) * 100 : 0;
 
   // ---- People ----
@@ -96,13 +103,13 @@ export default async function AdminAnalyticsPage() {
   const byMonth = new Map(
     months.map((m) => [m.key, { gmv: 0, revenue: 0 }])
   );
-  for (const p of Pay) {
-    const k = monthKey(p.created_at);
+  for (const e of L) {
+    const k = monthKey(e.created_at);
     const bucket = byMonth.get(k);
-    if (bucket) {
-      bucket.gmv += num(p.gross_amount);
-      bucket.revenue += num(p.marketplace_fee_amount);
-    }
+    if (!bucket) continue;
+    if (e.type === "fund") bucket.gmv += num(e.amount);
+    if (e.type === "fee_client" || e.type === "fee_freelancer")
+      bucket.revenue += num(e.amount);
   }
   const series = months.map((m) => ({ ...m, ...byMonth.get(m.key)! }));
   const maxGmv = Math.max(1, ...series.map((s) => s.gmv));
