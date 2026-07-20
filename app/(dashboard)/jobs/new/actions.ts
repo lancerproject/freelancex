@@ -44,12 +44,37 @@ export async function createJob(status: string, formData: FormData) {
   }
 
   const isDraft = status === "draft";
+
+  // Numeric bounds (server-side): a published job needs a sane, positive
+  // budget. Drafts may be saved without one, but any provided value is bounded.
+  const rawBudget = formData.get("budget");
+  const budgetNum = Number(rawBudget);
+  const budgetProvided = rawBudget != null && String(rawBudget).trim() !== "";
+  const MAX_BUDGET = 1_000_000;
+  if (
+    budgetProvided &&
+    (!Number.isFinite(budgetNum) || budgetNum <= 0 || budgetNum > MAX_BUDGET)
+  ) {
+    redirect(
+      `/dashboard?joberror=${encodeURIComponent(
+        "Please enter a valid budget between $1 and $1,000,000."
+      )}`
+    );
+  }
+  if (!isDraft && !budgetProvided) {
+    redirect(
+      `/dashboard?joberror=${encodeURIComponent(
+        "Please enter a budget for your job."
+      )}`
+    );
+  }
+
   const { data: created, error } = await supabase
     .from("jobs")
     .insert({
       title: formData.get("title"),
       description: formData.get("description"),
-      budget: formData.get("budget"),
+      budget: budgetProvided ? budgetNum : null,
       category: formData.get("category"),
       job_type: formData.get("job_type") || "fixed",
       experience_level: formData.get("experience_level") || "intermediate",

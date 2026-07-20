@@ -100,6 +100,21 @@ export async function submitProposal(jobId: string, formData: FormData) {
     );
   }
 
+  // Numeric bounds (server-side): reject non-positive, non-finite, or absurd
+  // amounts so a crafted request can't submit a negative or overflow bid.
+  const MAX_BID = 1_000_000;
+  if (!Number.isFinite(bidAmount) || bidAmount <= 0 || bidAmount > MAX_BID) {
+    redirect(`/jobs/${jobId}/proposal?error=amount`);
+  }
+  if (
+    paymentType === "milestone" &&
+    milestones.some(
+      (m) => !Number.isFinite(Number(m.amount)) || Number(m.amount) <= 0
+    )
+  ) {
+    redirect(`/jobs/${jobId}/proposal?error=amount`);
+  }
+
   // Map the chosen duration to an approximate number of days (kept for the
   // existing "delivery" displays on the client's proposal review).
   const DAYS: Record<string, number> = {
