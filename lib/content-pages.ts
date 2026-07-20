@@ -1008,7 +1008,7 @@ export const CONTENT_PAGES: Record<string, ContentPage> = {
       {
         heading: "General inquiries",
         body: [
-          "For anything else — partnerships, press, feedback or just to say hello — email us at hello@xwork.example and we'll get back to you as soon as we can.",
+          "For anything else — partnerships, press, feedback or just to say hello — email us at info@thexwork.com and we'll get back to you as soon as we can.",
         ],
       },
     ],
