@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toggleSaveJobQuiet } from "@/app/saved/actions";
 import { saveSearch } from "@/app/(dashboard)/jobs/search-actions";
@@ -122,13 +123,17 @@ export function FreelancerJobFeed({
   const [tab, setTab] = useState<string>(
     initialTab && TABS.includes(initialTab) ? initialTab : "Best Matches"
   );
-  // When the URL's tab changes (e.g. clicking "Saved jobs" in the nav while
-  // already on the home feed), switch to it without needing a reload. Only acts
-  // on a valid, non-empty initialTab so it never overrides a manual tab click.
+  // Switch tab straight from the URL's ?tab param, so clicking "Saved jobs" in
+  // the nav (→ ?tab=saved) opens the Saved Jobs tab instantly and reliably —
+  // even when already on this page — with no reload and no server round-trip.
+  // It only reacts to URL changes, so a manual tab click is never overridden.
+  const searchParams = useSearchParams();
+  const urlTab = searchParams.get("tab") === "saved" ? "Saved Jobs" : "";
   useEffect(() => {
-    if (initialTab && TABS.includes(initialTab)) setTab(initialTab);
+    const want = urlTab || initialTab;
+    if (want && TABS.includes(want)) setTab(want);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialTab]);
+  }, [urlTab]);
   const [saved, setSaved] = useState<Set<string>>(new Set(savedIds));
   // Disliked jobs collapse in place (showing the reason + an Expand link),
   // exactly like Upwork — they are NOT removed from the feed.
