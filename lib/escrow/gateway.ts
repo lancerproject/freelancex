@@ -56,5 +56,28 @@ class SimulatedGateway implements PaymentGateway {
   }
 }
 
-// The active gateway. Swap this line when a real provider is wired.
-export const gateway: PaymentGateway = new SimulatedGateway();
+// Gateway selection is EXPLICIT via the PAYMENTS_MODE env var, so production
+// can never silently run real-money flows on the simulator:
+//   • PAYMENTS_MODE unset | "simulated" → SimulatedGateway (in production this
+//     logs a loud warning so it can't go unnoticed).
+//   • PAYMENTS_MODE = "live" (or anything else) → throws until a real provider
+//     is wired here, rather than quietly approving fake charges/payouts.
+function selectGateway(): PaymentGateway {
+  const mode = (process.env.PAYMENTS_MODE || "simulated").toLowerCase();
+  if (mode === "simulated") {
+    if (process.env.NODE_ENV === "production") {
+      console.warn(
+        "[payments] SIMULATED gateway is active in PRODUCTION. No real money moves. " +
+          "Set PAYMENTS_MODE=live and wire a real provider in lib/escrow/gateway.ts before taking real payments."
+      );
+    }
+    return new SimulatedGateway();
+  }
+  throw new Error(
+    `[payments] PAYMENTS_MODE="${mode}" but no live payment gateway is wired. ` +
+      "Implement a real PaymentGateway in lib/escrow/gateway.ts and select it here."
+  );
+}
+
+// The active gateway.
+export const gateway: PaymentGateway = selectGateway();

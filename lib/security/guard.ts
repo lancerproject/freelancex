@@ -298,3 +298,45 @@ export async function countRecentVerificationFailures(
     return { failuresInLast24h: 0 };
   }
 }
+
+/* ---------- login throttle (credential-stuffing / brute-force) ---------- */
+// App-level backstop on top of Supabase Auth's own endpoint limits: too many
+// FAILED password logins from one IP in a short window are blocked. Successful
+// logins don't count, so a legitimate user is never locked out by others.
+const LOGIN_FAIL_WINDOW_MIN = 15;
+export const LOGIN_FAIL_MAX = 8;
+
+export async function recordLoginFailure(email?: string): Promise<void> {
+  try {
+    const ip = await getClientIp();
+    await logSecurityEvent({
+      eventType: "login_failed",
+      description: (email || "").slice(0, 120),
+      ip,
+    });
+  } catch {
+    /* never block the auth flow on a logging failure */
+  }
+}
+
+// True when this IP has hit the failed-login cap in the trailing window.
+export async function isLoginRateLimited(): Promise<boolean> {
+  try {
+    const ip = await getClientIp();
+    if (!ip || isLocalOrPrivateIp(ip)) return false; // don't throttle local dev
+    const { createAdminClient } = await import("@/lib/supabase-admin");
+    const admin = createAdminClient();
+    const since = new Date(
+      Date.now() - LOGIN_FAIL_WINDOW_MIN * 60 * 1000
+    ).toISOString();
+    const { count } = await admin
+      .from("security_events_log")
+      .select("*", { count: "exact", head: true })
+      .eq("event_type", "login_failed")
+      .eq("ip_address", ip)
+      .gte("created_at", since);
+    return (count ?? 0) >= LOGIN_FAIL_MAX;
+  } catch {
+    return false;
+  }
+}

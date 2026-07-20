@@ -5,7 +5,12 @@ import { after } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase-server";
 import { wizardResumePath } from "@/lib/wizard";
-import { preAuthGuard, postLoginChecks } from "@/lib/security/guard";
+import {
+  preAuthGuard,
+  postLoginChecks,
+  isLoginRateLimited,
+  recordLoginFailure,
+} from "@/lib/security/guard";
 import { statusBlockMessage } from "@/lib/security/suspend";
 
 export async function loginWithGoogle(formData?: FormData) {
@@ -47,12 +52,23 @@ export async function loginWithEmail(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(pre.message || "Access denied.")}`);
   }
 
+  // Brute-force / credential-stuffing throttle: too many failed logins from
+  // this IP in the last few minutes are blocked (successful logins don't count).
+  if (await isLoginRateLimited()) {
+    redirect(
+      `/login?error=${encodeURIComponent(
+        "Too many sign-in attempts. Please wait a few minutes and try again."
+      )}`
+    );
+  }
+
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
   if (error) {
+    await recordLoginFailure(email);
     redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
 
