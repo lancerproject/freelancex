@@ -393,13 +393,22 @@ export default async function ContractDetailsPage({
                 })
               : "—"}
           </p>
-          {myReview?.rating && (
+          {myReview?.rating ? (
             <span className="flex items-center gap-1">
               <StarRating value={myReview.rating} size="text-sm" />
               <span className="text-sm text-muted-foreground">
                 {myReview.rating}.0
               </span>
             </span>
+          ) : (
+            <a
+              href={`/contracts/${id}/feedback`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-auto bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-semibold hover:opacity-90"
+            >
+              Leave feedback
+            </a>
           )}
         </div>
       )}

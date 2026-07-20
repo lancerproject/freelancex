@@ -52,6 +52,8 @@ export async function submitReview(
     privateRatingRaw >= 1 && privateRatingRaw <= 5 ? privateRatingRaw : null;
   const privateComment =
     ((formData.get("private_comment") as string) || "").trim() || null;
+  const endReason =
+    ((formData.get("reason") as string) || "").trim() || null;
 
   const { error } = await supabase.from("reviews").upsert(
     {
@@ -62,6 +64,7 @@ export async function submitReview(
       comment,
       private_rating: privateRating,
       private_comment: privateComment,
+      end_reason: endReason,
     },
     { onConflict: "contract_id,reviewer_id" }
   );
