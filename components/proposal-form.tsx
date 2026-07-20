@@ -84,16 +84,19 @@ export function ProposalForm({
         continue;
       }
       const safe = file.name.replace(/[^\w.\-]+/g, "_");
-      const path = `proposals/${jobId}/${safe}`;
+      const path = `proposals/${jobId}/${Date.now()}-${safe}`;
+      // Private bucket — served back only via the auth-gated /api/attachment route.
       const { error } = await supabase.storage
-        .from("project-files")
+        .from("attachments")
         .upload(path, file, { upsert: true });
       if (error) {
         setFileError("Couldn't upload a file. Please try again.");
         continue;
       }
-      const { data } = supabase.storage.from("project-files").getPublicUrl(path);
-      setFiles((prev) => [...prev, { url: data.publicUrl, name: file.name }]);
+      setFiles((prev) => [
+        ...prev,
+        { url: `/api/attachment/${path}`, name: file.name },
+      ]);
     }
     setUploading(false);
   };

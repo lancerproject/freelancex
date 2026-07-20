@@ -63,7 +63,7 @@ export async function uploadFile(contractId: string, formData: FormData) {
   const filePath = `${user.id}/${contractId}/${Date.now()}-${safeName}`;
 
   const { error: uploadError } = await supabase.storage
-    .from("project-files")
+    .from("attachments")
     .upload(filePath, file, { contentType: file.type || "application/octet-stream" });
   if (uploadError) return;
 
@@ -106,6 +106,9 @@ export async function deleteFile(
   const isParty = await assertContractParty(supabase, user.id, row.contract_id);
   if (!isParty) redirect(`/contracts/${contractId}`);
 
+  // New files live in the private `attachments` bucket; legacy files may still
+  // be in project-files — try both so cleanup works either way.
+  await supabase.storage.from("attachments").remove([row.file_path]);
   await supabase.storage.from("project-files").remove([row.file_path]);
   await supabase.from("contract_files").delete().eq("id", fileId);
 

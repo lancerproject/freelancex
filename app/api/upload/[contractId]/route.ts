@@ -34,7 +34,7 @@ export async function POST(
   const filePath = `${user.id}/${contractId}/${Date.now()}-${file.name}`;
 
   const { error: uploadError } = await supabase.storage
-    .from("project-files")
+    .from("attachments")
     .upload(filePath, file, {
       contentType: file.type,
     });

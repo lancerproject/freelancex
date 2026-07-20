@@ -42,23 +42,20 @@ export function AttachmentUploader({
         }
         const safeName = file.name.replace(/[^\w.\-]+/g, "_");
         const path = `${pathPrefix}/${userId}/${Date.now()}-${safeName}`;
+        // Private bucket — served back only through the auth-gated
+        // /api/attachment route (never a public URL).
         const { error: upErr } = await supabase.storage
-          .from("project-files")
+          .from("attachments")
           .upload(path, file, { upsert: true, contentType: file.type });
         if (upErr) {
           setError(`Couldn't upload "${file.name}". Please try again.`);
           continue;
         }
-        const { data: pub } = supabase.storage
-          .from("project-files")
-          .getPublicUrl(path);
-        if (pub?.publicUrl) {
-          added.push({
-            name: file.name,
-            url: pub.publicUrl,
-            type: file.type || "",
-          });
-        }
+        added.push({
+          name: file.name,
+          url: `/api/attachment/${path}`,
+          type: file.type || "",
+        });
       }
       if (added.length) setFiles((prev) => [...prev, ...added]);
     } finally {

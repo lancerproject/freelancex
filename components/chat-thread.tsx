@@ -351,8 +351,9 @@ export function ChatThread({
     setUploading(true);
     const safeName = file.name.replace(/[^\w.\-]+/g, "_");
     const path = `chat/${conversationId}/${userId}-${safeName}`;
+    // Private bucket — read back only via the auth-gated /api/attachment route.
     const { error: upErr } = await supabase.storage
-      .from("project-files")
+      .from("attachments")
       .upload(path, file, { upsert: true });
 
     if (upErr) {
@@ -364,12 +365,9 @@ export function ChatThread({
       return;
     }
 
-    const { data: pub } = supabase.storage
-      .from("project-files")
-      .getPublicUrl(path);
     const res = await sendChatAttachment(
       conversationId,
-      pub.publicUrl,
+      `/api/attachment/${path}`,
       file.name
     ).catch(
       (): Awaited<ReturnType<typeof sendChatAttachment>> => ({
