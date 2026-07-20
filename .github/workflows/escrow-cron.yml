@@ -5,20 +5,43 @@ name: Escrow background jobs
 # the app's cron endpoint. Free, and lives in the repo.
 #
 # Setup (one time): add a repository secret named CRON_SECRET whose value is
-# the SAME string set as CRON_SECRET on the Render web service.
+# the SAME string set as CRON_SECRET on the hosting env (Render/Vercel).
 #   GitHub → Settings → Secrets and variables → Actions → New repository secret
+#
+# NOTE: the step intentionally never fails the workflow, so an unset/mismatched
+# secret does NOT spam failure emails — it prints a visible ::warning:: in the
+# Actions log instead. The escrow DB functions re-check state under a row lock,
+# so a missed run is harmless (the next run catches up).
 
 on:
   schedule:
-    - cron: "*/10 * * * *" # every 10 minutes
+    - cron: "0 * * * *" # hourly — escrow windows are 3–7 days, so this is ample
   workflow_dispatch: {} # allow manual runs from the Actions tab
+
+# Only one run at a time; a slow run won't pile up behind the schedule.
+concurrency:
+  group: escrow-cron
+  cancel-in-progress: false
 
 jobs:
   run-escrow-jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger escrow jobs
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          curl -fsS --max-time 60 \
-            "https://thexwork.com/api/cron/escrow?key=${{ secrets.CRON_SECRET }}" \
-            && echo "escrow jobs ran"
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::warning::CRON_SECRET repository secret is not set — escrow timers are NOT running. Add it under Settings → Secrets and variables → Actions (must match the CRON_SECRET env var on the host)."
+            exit 0
+          fi
+          code=$(curl -s -o /tmp/escrow_out.txt -w "%{http_code}" --max-time 60 \
+            "https://thexwork.com/api/cron/escrow?key=${CRON_SECRET}") || code="000"
+          echo "escrow cron responded HTTP ${code}"
+          cat /tmp/escrow_out.txt || true
+          if [ "$code" != "200" ]; then
+            echo "::warning::escrow cron returned HTTP ${code} (check that CRON_SECRET matches the value set on the host)."
+          fi
+          # Never fail the workflow — avoids failure-email spam; warnings above
+          # remain visible in the Actions log.
+          exit 0
