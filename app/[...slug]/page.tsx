@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MarketingHeader } from "@/components/marketing-header";
@@ -5,6 +6,36 @@ import { SiteFooter } from "@/components/site-footer";
 import { CONTENT_PAGES } from "@/lib/content-pages";
 import { OperatorNote } from "@/components/operator-note";
 import { createClient } from "@/lib/supabase-server";
+
+// Per-page SEO metadata for every content/legal page (title, description,
+// canonical, Open Graph) so each public page is properly indexable.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string[] }>;
+}): Promise<Metadata> {
+  let slug: string[] = [];
+  try {
+    ({ slug } = await params);
+  } catch {
+    return { title: "Xwork" };
+  }
+  const key = (slug?.[0] ?? "").toLowerCase();
+  const page = CONTENT_PAGES[key];
+  if (!page) return { title: "Xwork" };
+  const base = (
+    process.env.NEXT_PUBLIC_APP_URL || "https://thexwork.com"
+  ).replace(/\/$/, "");
+  const title = `${page.title} | Xwork`;
+  const description = page.subtitle || `${page.title} — Xwork.`;
+  return {
+    title,
+    description,
+    alternates: { canonical: `${base}/${key}` },
+    openGraph: { title, description, url: `${base}/${key}`, siteName: "Xwork" },
+    twitter: { card: "summary", title, description },
+  };
+}
 
 // Legal/policy content pages render with the same compact typography as the
 // standalone legal pages (Terms, Privacy, etc.) — main header 20px, section

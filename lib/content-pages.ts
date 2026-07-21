@@ -1183,4 +1183,230 @@ export const CONTENT_PAGES: Record<string, ContentPage> = {
       { heading: "Coming soon", body: ["Mobile apps for iOS and Android are in the works, so you can message clients, review proposals, and manage contracts on the go. Stay tuned."] },
     ],
   },
+
+  "aml-kyc": {
+    title: "AML & KYC Policy",
+    subtitle:
+      "How Xwork prevents money laundering and verifies the identities of the people who earn and pay on the platform. Last updated July 2026.",
+    sections: [
+      {
+        heading: "1. Our commitment",
+        body: [
+          "Xwork is committed to preventing money laundering, terrorist financing, fraud and other financial crime on the platform. This policy summarises our Anti-Money-Laundering (AML) program and our Know-Your-Customer (KYC) and Know-Your-Business (KYB) controls. It works alongside our Terms of Service, User Agreement and Privacy Policy.",
+        ],
+      },
+      {
+        heading: "2. Identity verification (KYC)",
+        body: [
+          "Freelancers verify their identity before their earnings can be paid out. Verification uses a government-issued photo ID (passport, driver's license or national ID), a live selfie, and an automated face-match check; borderline cases are escalated to manual review by our trust & safety team.",
+          "We check that the country on the submitted ID matches the country on the account, and each verified identity can be linked to only one active account. Providing false or altered documents is a serious violation and results in account closure.",
+        ],
+      },
+      {
+        heading: "3. Payment verification (KYB / source of funds)",
+        body: [
+          "Clients confirm a valid payment method before funds move through escrow. When real-money processing is enabled, payment collection, card verification and payout onboarding are handled by regulated, PCI-DSS-compliant payment providers; Xwork does not store raw card numbers or bank credentials.",
+        ],
+      },
+      {
+        heading: "4. Transaction monitoring & sanctions screening",
+        body: [
+          "Money on Xwork moves only through a controlled escrow flow with an append-only ledger, so every fund, fee, release, refund and withdrawal is recorded and auditable. We monitor for patterns associated with abuse or laundering (for example, attempts to move payments off-platform, structuring, or mismatched identity/location signals) and screen against applicable sanctions and watch-lists through our payment partners.",
+        ],
+      },
+      {
+        heading: "5. Prohibited activity",
+        body: [
+          "You may not use Xwork to launder money, finance illegal activity, evade sanctions, or transact in prohibited goods or services. Taking payments off-platform to avoid escrow, fees or monitoring is prohibited and removes your protections.",
+        ],
+      },
+      {
+        heading: "6. Reporting & cooperation",
+        body: [
+          "We investigate suspicious activity and, where required by law, freeze funds, close accounts and report to the relevant authorities. To report suspected fraud or money laundering, contact info@thexwork.com or use the reporting tools on the platform.",
+        ],
+      },
+      {
+        heading: "7. Record-keeping",
+        body: [
+          "We retain verification records, transaction ledgers and related information for the period required by applicable law, and handle that data in line with our Privacy Policy.",
+        ],
+      },
+    ],
+  },
+
+  "freelancer-agreement": {
+    title: "Freelancer Service Agreement",
+    subtitle:
+      "The terms that apply to freelancers offering services on Xwork. Read together with the Terms of Service and User Agreement.",
+    sections: [
+      {
+        heading: "1. Independent contractor",
+        body: [
+          "As a freelancer you are an independent contractor, not an employee, agent or partner of Xwork. You control how, when and where you perform your services, and you are responsible for your own equipment, expenses, insurance and taxes.",
+        ],
+      },
+      {
+        heading: "2. Eligibility & verification",
+        body: [
+          "You must be at least 18, provide accurate profile information, and complete identity verification before your earnings can be paid out (see our AML & KYC Policy). Each person may operate only one freelancer account unless we permit otherwise.",
+        ],
+      },
+      {
+        heading: "3. Proposals & contracts",
+        body: [
+          "Applying to jobs is free. When a client hires you, a contract is formed on the terms you both accept. Deliver the agreed work honestly and on time, communicate through Xwork, and only submit work you have the right to provide.",
+        ],
+      },
+      {
+        heading: "4. Getting paid & fees",
+        body: [
+          "Fixed-price work is funded into escrow and released to you as milestones are approved. Xwork charges a service fee on your earnings — 10% on the standard plan, or 5% with a Pro membership — deducted at the time a payment is processed. Released funds clear after a short security-hold period, then become available to withdraw to your connected payout method.",
+        ],
+      },
+      {
+        heading: "5. Taxes",
+        body: [
+          "You are solely responsible for determining and paying any taxes on your earnings and for any tax reporting required where you live or work. Keep your tax information on file up to date to avoid payout delays.",
+        ],
+      },
+      {
+        heading: "6. Ownership of work",
+        body: [
+          "Unless your contract says otherwise, ownership of deliverables transfers to the client on full payment. Don't reuse a client's confidential materials beyond what the contract allows.",
+        ],
+      },
+      {
+        heading: "7. Conduct & account standing",
+        body: [
+          "Follow the Community Guidelines and Acceptable Use Policy. Circumventing fees or escrow, misrepresenting your identity or skills, or abusing clients can lead to warnings, feature limits, suspension or permanent closure.",
+        ],
+      },
+    ],
+  },
+
+  "client-agreement": {
+    title: "Client Service Agreement",
+    subtitle:
+      "The terms that apply to clients who post jobs and hire on Xwork. Read together with the Terms of Service and User Agreement.",
+    sections: [
+      {
+        heading: "1. Posting & hiring",
+        body: [
+          "You can post fixed-price jobs for free and set the scope, budget and any screening questions. When you send an offer and a freelancer accepts, a contract is formed on the terms you both agree.",
+        ],
+      },
+      {
+        heading: "2. Funding & escrow",
+        body: [
+          "Fixed-price work is funded into escrow before it begins. Money you fund is held securely and released to the freelancer only when you approve a milestone (or when the published auto-approval window elapses). This protects both sides.",
+        ],
+      },
+      {
+        heading: "3. Fees & payment methods",
+        body: [
+          "You can post and hire without a platform fee; any payment-processing charges, where they apply, are shown before you confirm a payment. When real-money processing is enabled, your payment details are handled by regulated PCI-DSS-compliant providers — Xwork never stores your raw card number.",
+        ],
+      },
+      {
+        heading: "4. Approvals, refunds & disputes",
+        body: [
+          "Review submitted work and approve it to release payment, or request changes. If something goes wrong, try to resolve it directly first; otherwise open a dispute and our team will review the escrow record and evidence to reach a fair outcome. Refunds are returned to your original method.",
+        ],
+      },
+      {
+        heading: "5. Ownership & confidentiality",
+        body: [
+          "Ownership of deliverables is governed by your contract with the freelancer and typically transfers to you on full payment. Handle any personal data or confidential materials responsibly and lawfully.",
+        ],
+      },
+      {
+        heading: "6. Conduct",
+        body: [
+          "Follow the Community Guidelines and Acceptable Use Policy. Attempting to take work or payments off-platform to avoid fees or escrow removes your protections and may lead to account action.",
+        ],
+      },
+    ],
+  },
+
+  "community-guidelines": {
+    title: "Community Guidelines",
+    subtitle:
+      "The simple rules that keep Xwork a safe, fair and professional place to work and hire.",
+    sections: [
+      {
+        heading: "Be honest",
+        body: [
+          "Represent yourself, your skills, your work and your intentions truthfully. Don't create fake accounts, fake reviews, or misleading job posts and proposals.",
+        ],
+      },
+      {
+        heading: "Be respectful",
+        body: [
+          "Treat everyone professionally. Harassment, hate speech, discrimination, threats and abusive behaviour are not tolerated.",
+        ],
+      },
+      {
+        heading: "Keep it on Xwork",
+        body: [
+          "Keep communication, files and payments on the platform. Moving off-platform to dodge fees or escrow removes everyone's protections and is a violation.",
+        ],
+      },
+      {
+        heading: "Do good work, in good faith",
+        body: [
+          "Deliver what you agree to, pay for work you accept, and resolve problems fairly. Use the dispute tools rather than retaliating with unfair reviews.",
+        ],
+      },
+      {
+        heading: "Protect trust & safety",
+        body: [
+          "Don't post anything illegal, infringing or harmful, and don't try to scam, phish or defraud other members. Report anything suspicious using the reporting tools or at info@thexwork.com — breaking these guidelines can lead to warnings, suspension or permanent account closure.",
+        ],
+      },
+    ],
+  },
+
+  faq: {
+    title: "Frequently asked questions",
+    subtitle: "Quick answers to the most common questions about using Xwork.",
+    sections: [
+      {
+        heading: "Is it free to join and apply?",
+        body: [
+          "Yes. Creating an account, building a profile, posting jobs and applying to jobs are all free. Freelancers pay a service fee only on what they earn (10%, or 5% with Pro); clients can hire at no platform fee.",
+        ],
+      },
+      {
+        heading: "How does payment protection (escrow) work?",
+        body: [
+          "For fixed-price work, the client funds a milestone into escrow before the work starts. The money is held securely and released to the freelancer when the client approves the work — so freelancers know the funds are set aside, and clients only pay for accepted work.",
+        ],
+      },
+      {
+        heading: "When can I withdraw my earnings?",
+        body: [
+          "Once a milestone is approved, the funds clear after a short security-hold period and then become available to withdraw to your connected payout method from the Withdrawals page.",
+        ],
+      },
+      {
+        heading: "What if there's a problem with a contract?",
+        body: [
+          "Try to resolve it directly through Messages first. If that isn't possible, open a dispute from the contract and our trust & safety team will review the escrow record and evidence to help reach a fair outcome.",
+        ],
+      },
+      {
+        heading: "Why do I need to verify my identity?",
+        body: [
+          "Identity verification keeps the marketplace safe and enables secure payouts. Freelancers verify with a photo ID and a live selfie before earnings can be withdrawn — see our AML & KYC Policy.",
+        ],
+      },
+      {
+        heading: "How do I get help?",
+        body: [
+          "Visit the Help & support center for step-by-step guides, or contact us any time at info@thexwork.com or through the Contact page.",
+        ],
+      },
+    ],
+  },
 };
