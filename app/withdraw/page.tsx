@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { identityBlocked } from "@/lib/identity";
 import { redirect } from "next/navigation";
 import { WithdrawalMethods } from "@/components/withdrawal-methods";
@@ -20,13 +21,8 @@ export default async function WithdrawalsPage() {
   const verifyRequired = await identityBlocked();
 
   // Tax information (W-9 / W-8BEN) must be completed before withdrawing.
-  const { data: meProfile } = await supabase
-    .from("profiles")
-    .select(
-      "tax_info, country, plan, membership_status, membership_end_date, membership_autorenew"
-    )
-    .eq("id", user.id)
-    .maybeSingle();
+  // Own-row read via the service role (tax_info is revoked from authenticated).
+  const meProfile = await loadOwnProfile(user.id);
   const taxComplete = taxInfoComplete(meProfile?.tax_info);
   const membership = getMembership(meProfile);
 

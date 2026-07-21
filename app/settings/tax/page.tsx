@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { redirect } from "next/navigation";
 import { TaxSections } from "@/components/tax-sections";
 
@@ -11,13 +12,9 @@ export default async function TaxInformationPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select(
-      "tax_info, full_name, country, address1, address2, city, state, postal_code"
-    )
-    .eq("id", user.id)
-    .maybeSingle();
+  // Own-row read via the service role (tax_info/address are revoked from the
+  // authenticated role).
+  const profile = await loadOwnProfile(user.id);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let t: any = {};

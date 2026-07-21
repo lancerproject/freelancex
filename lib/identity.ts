@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { profileChecklist } from "@/lib/profile-completion";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -51,11 +52,9 @@ export async function identityBlocked(): Promise<boolean> {
   } = await supabase.auth.getUser();
   if (!user) return false;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
+  // Own-row read via the service role — a `select("*")` as the authenticated
+  // role is denied now that PII columns are revoked from it.
+  const profile = await loadOwnProfile(user.id);
 
   return computeIdentityRequired(supabase, user.id, profile);
 }

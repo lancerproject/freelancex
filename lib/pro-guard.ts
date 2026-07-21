@@ -5,6 +5,7 @@
 // the caller is an active Pro freelancer, otherwise { ok: false }.
 
 import { createClient } from "./supabase-server";
+import { loadOwnProfile } from "./own-profile";
 import { getMembership } from "./membership";
 
 export async function requirePro(): Promise<{
@@ -22,11 +23,9 @@ export async function requirePro(): Promise<{
   } = await supabase.auth.getUser();
   if (!user) return { ok: false };
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
+  // Own-row read via the service role — a `select("*")` as the authenticated
+  // role is denied now that PII columns are revoked from it.
+  const profile = await loadOwnProfile(user.id);
 
   const membership = getMembership(profile);
   if (!membership.isPro) return { ok: false, supabase, user, profile };

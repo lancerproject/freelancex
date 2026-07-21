@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getInbox } from "@/lib/inbox";
@@ -21,13 +22,9 @@ export default async function MessagesPage() {
 
   const { items, saved } = await getInbox(supabase, user.id);
 
-  // Core profile flags — split selects so a pending migration can never break
-  // the page (a Supabase select fails wholesale if one column is missing).
-  const { data: me } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
+  // Core profile flags — own-row read via the service role (notification_prefs
+  // is revoked from the authenticated role).
+  const me = await loadOwnProfile(user.id);
   let rulesAccepted = true;
   let outOfOffice = false;
   let oooUntil: string | null = null;
@@ -35,13 +32,7 @@ export default async function MessagesPage() {
   let msgInapp = true;
   let msgEmail = true;
   {
-    const { data } = await supabase
-      .from("profiles")
-      .select(
-        "chat_rules_accepted_at, out_of_office, out_of_office_until, online_for_messages, notification_prefs"
-      )
-      .eq("id", user.id)
-      .maybeSingle();
+    const data = me;
     if (data) {
       rulesAccepted = !!data.chat_rules_accepted_at;
       outOfOffice = !!data.out_of_office;

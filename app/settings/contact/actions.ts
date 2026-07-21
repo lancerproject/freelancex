@@ -85,11 +85,8 @@ export async function updateLocation(formData: FormData) {
   const location = [city, country].filter(Boolean).join(", ");
 
   // A changed phone number loses its verified status until re-verified.
-  const { data: before } = await supabase
-    .from("profiles")
-    .select("phone")
-    .eq("id", user.id)
-    .maybeSingle();
+  // Own-row read via the service role (phone is revoked from authenticated).
+  const before = await loadOwnProfile(user.id);
   const phoneChanged = (before?.phone || "") !== phone;
 
   const { error } = await supabase
@@ -151,11 +148,7 @@ export async function sendPhoneCode(): Promise<{
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "You're not signed in." };
 
-  const { data: me } = await supabase
-    .from("profiles")
-    .select("phone")
-    .eq("id", user.id)
-    .maybeSingle();
+  const me = await loadOwnProfile(user.id);
   const phone = (me?.phone || "").trim();
   if (!phone) {
     return { ok: false, error: "Add your phone number first, then verify it." };

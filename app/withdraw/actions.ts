@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { notify } from "@/lib/notify";
 import { revalidatePath } from "next/cache";
 import { COUNTRIES } from "@/lib/countries";
@@ -258,13 +259,8 @@ export async function requestWithdrawal(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "You're not signed in." };
 
-  const { data: me } = await supabase
-    .from("profiles")
-    .select(
-      "id_verified, suspended, tax_info, plan, membership_status, membership_end_date, membership_autorenew"
-    )
-    .eq("id", user.id)
-    .maybeSingle();
+  // Own-row read via the service role (tax_info is revoked from authenticated).
+  const me = await loadOwnProfile(user.id);
   if (me?.suspended) {
     return { ok: false, error: "Your account is suspended, so funds can't be withdrawn." };
   }

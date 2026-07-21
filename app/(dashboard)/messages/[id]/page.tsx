@@ -180,13 +180,9 @@ export default async function ConversationPage({
   let msgInapp = true;
   let msgEmail = true;
   {
-    const { data } = await supabase
-      .from("profiles")
-      .select(
-        "chat_rules_accepted_at, out_of_office, out_of_office_until, online_for_messages, notification_prefs"
-      )
-      .eq("id", user.id)
-      .maybeSingle();
+    // Reuse the own-row already loaded via the service role (notification_prefs
+    // is revoked from the authenticated role).
+    const data = myProfile;
     if (data) {
       rulesAccepted = !!data.chat_rules_accepted_at;
       outOfOffice = !!data.out_of_office;

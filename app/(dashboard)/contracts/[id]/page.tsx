@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import { loadOwnProfile } from "@/lib/own-profile";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { notFound, redirect } from "next/navigation";
 import { completeContract } from "@/app/proposals/actions";
 import {
@@ -84,7 +85,9 @@ export default async function ContractDetailsPage({
       contract.job_id
         ? supabase.from("jobs").select("*").eq("id", contract.job_id).maybeSingle()
         : Promise.resolve({ data: null }),
-      supabase
+      // Counterparty profile (cross-user) — read via the service role since
+      // phone is revoked from the authenticated role.
+      createAdminClient()
         .from("profiles")
         .select(
           "id, full_name, username, avatar_url, location, country, created_at, phone, timezone, payment_verified, role"
