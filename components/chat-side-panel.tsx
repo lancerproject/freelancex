@@ -182,8 +182,9 @@ export function ChatSidePanel({
       </div>
 
       {/* Activity timeline */}
-      {timeline && (
+      {(timeline || (ended && contractId)) && (
         <Section title="Activity timeline" defaultOpen>
+          {timeline && (
           <ol className="relative ml-2 space-y-4">
             {steps.map((s, i) => (
               <li key={s.label} className="flex gap-3">
@@ -237,6 +238,29 @@ export function ChatSidePanel({
               </li>
             ))}
           </ol>
+          )}
+
+          {/* Once the contract has ended, either party can leave feedback.
+              Opens the dedicated feedback page in a new tab (Upwork-style). */}
+          {ended && contractId && (
+            <div className={timeline ? "mt-4 pt-4 border-t border-border" : ""}>
+              <p className="text-sm font-medium text-foreground">
+                ⭐ Contract ended
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Share your experience — feedback is published once both sides
+                submit (or after 14 days).
+              </p>
+              <Link
+                href={`/contracts/${contractId}/feedback`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block mt-2 bg-primary text-primary-foreground rounded-full px-4 py-1.5 text-xs font-semibold hover:opacity-90"
+              >
+                Leave feedback
+              </Link>
+            </div>
+          )}
         </Section>
       )}
 

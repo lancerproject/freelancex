@@ -162,3 +162,55 @@ export async function adminResolveDispute(contractId: string) {
   revalidatePath("/admin");
   redirect("/admin");
 }
+
+// Remove a job from the marketplace (moderation). Sets it to "cancelled" so it
+// drops out of every public listing and search, resolves any pending reports,
+// and notifies the client why. Reversible (a super-admin can re-open in the DB)
+// and keeps the row for audit — never a hard delete.
+export async function adminRemoveJob(jobId: string, formData: FormData) {
+  const { supabase } = await ensureAdmin();
+  const reason =
+    (formData.get("reason") as string)?.trim() ||
+    "This job was removed by Xwork Trust & Safety for violating our terms.";
+
+  const admin = createAdminClient();
+  const { data: job } = await admin
+    .from("jobs")
+    .select("id, title, client_id")
+    .eq("id", jobId)
+    .maybeSingle();
+
+  await admin.from("jobs").update({ status: "cancelled" }).eq("id", jobId);
+  await admin
+    .from("job_reports")
+    .update({ status: "reviewed" })
+    .eq("job_id", jobId)
+    .eq("status", "pending");
+
+  if (job) {
+    await notify(
+      supabase,
+      job.client_id,
+      "system",
+      "Your job posting was removed",
+      `${reason} The posting "${job.title}" is no longer visible on Xwork.`,
+      "/client/jobs"
+    );
+  }
+
+  revalidatePath("/admin/jobs");
+  redirect("/admin/jobs");
+}
+
+// Dismiss the reports on a job without removing it (reviewed, no action taken).
+export async function adminDismissJobReports(jobId: string) {
+  await ensureAdmin();
+  const admin = createAdminClient();
+  await admin
+    .from("job_reports")
+    .update({ status: "reviewed" })
+    .eq("job_id", jobId)
+    .eq("status", "pending");
+  revalidatePath("/admin/jobs");
+  redirect("/admin/jobs");
+}

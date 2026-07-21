@@ -141,11 +141,63 @@ export default async function WithdrawalsPage() {
           </div>
         </div>
 
-        {/* Recent withdrawals */}
+        {/* Withdrawal schedule — explains how/when funds become available. */}
         <div className="rounded-2xl border border-border bg-card p-6 mb-6">
           <h2 className="text-2xl font-semibold text-foreground">
-            Recent withdrawals
+            Withdrawal schedule
           </h2>
+          <p className="text-sm text-muted-foreground mt-2">
+            Withdrawals are on a <span className="font-medium text-foreground">manual</span> schedule
+            — your money is yours to move whenever your balance is available.
+            Here&apos;s how funds flow to you:
+          </p>
+          <ol className="mt-4 space-y-3">
+            {[
+              {
+                t: "1. Work approved",
+                d: "When a client approves your submitted work, the milestone amount (minus the platform fee) is released to your account.",
+              },
+              {
+                t: "2. Security hold clears",
+                d: "Released funds sit in “Pending” for a short security-review window, then move to your Available balance.",
+              },
+              {
+                t: "3. You withdraw",
+                d: "Withdraw any available amount to a saved method. Payouts arrive in up to 24 hours.",
+              },
+            ].map((s) => (
+              <li key={s.t} className="flex gap-3">
+                <span className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">{s.t}</p>
+                  <p className="text-sm text-muted-foreground">{s.d}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <p className="text-xs text-muted-foreground mt-4">
+            Your fee is {membership.isPro ? "5%" : "10%"} of each payment
+            {membership.isPro
+              ? " (Pro rate)."
+              : " — Pro members pay 5%."}
+          </p>
+        </div>
+
+        {/* Recent withdrawals */}
+        <div className="rounded-2xl border border-border bg-card p-6 mb-6">
+          <div className="flex items-baseline justify-between flex-wrap gap-2">
+            <h2 className="text-2xl font-semibold text-foreground">
+              Recent withdrawals
+            </h2>
+            {withdrawals.length > 0 && (
+              <Link
+                href="/withdraw/history"
+                className="text-sm font-medium text-foreground underline hover:no-underline"
+              >
+                View all withdrawals →
+              </Link>
+            )}
+          </div>
           {withdrawals.length === 0 ? (
             <p className="text-muted-foreground mt-3">
               You haven&apos;t made any withdrawals yet.

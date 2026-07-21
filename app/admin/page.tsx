@@ -52,13 +52,17 @@ export default async function AdminPage() {
   const { count: totalUsers } = await supabase
     .from("profiles")
     .select("*", { count: "exact", head: true });
+  const { count: reportedJobs } = await admin
+    .from("job_reports")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "pending");
   const suspendedCount = flagged.filter((f) => f.suspended).length;
 
   const stats = [
     { label: "Total users", value: totalUsers ?? 0 },
     { label: "Flagged accounts", value: flagged.length },
-    { label: "Suspended", value: suspendedCount },
     { label: "Open disputes", value: disputes.length },
+    { label: "Reported jobs", value: reportedJobs ?? 0 },
   ];
 
   return (
@@ -92,6 +96,18 @@ export default async function AdminPage() {
             className="border border-border text-foreground rounded-full px-4 py-1.5 text-sm font-medium hover:bg-secondary"
           >
             ⚖️ Violations
+          </Link>
+          <Link
+            href="/admin/users"
+            className="border border-border text-foreground rounded-full px-4 py-1.5 text-sm font-medium hover:bg-secondary"
+          >
+            👥 Users
+          </Link>
+          <Link
+            href="/admin/jobs"
+            className="border border-border text-foreground rounded-full px-4 py-1.5 text-sm font-medium hover:bg-secondary"
+          >
+            🧹 Job moderation
           </Link>
         </div>
 
