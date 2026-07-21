@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase-server"
+import { loadOwnProfile } from "@/lib/own-profile";
 import { notify } from "@/lib/notify";
 import { redirect } from "next/navigation";
 
@@ -72,11 +73,7 @@ export async function applyToJob(
       .select("client_id, title")
       .eq("id", jobId)
       .single();
-    const { data: me } = await supabase
-      .from("profiles")
-      .select("full_name, username, email")
-      .eq("id", user.id)
-      .maybeSingle();
+    const me = await loadOwnProfile(user.id);
     const who =
       me?.full_name || me?.username || me?.email || "A freelancer";
     if (job) {

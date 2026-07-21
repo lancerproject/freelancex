@@ -1,6 +1,7 @@
 import { ProposalsViewedPinger } from "@/components/proposals-viewed-pinger";
 import { ProposalReviewCard } from "@/components/proposal-review-card";
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { notFound, redirect } from "next/navigation";
 import { toggleSaveJob } from "@/app/saved/actions";
 import { deleteJob, inviteToJob } from "@/app/(dashboard)/jobs/actions";
@@ -152,11 +153,8 @@ export default async function JobDetailsPage({
   /* ============================ OWNER VIEW ============================ */
   if (isOwner) {
     const ownerActivity = await getJobActivity(id);
-    const { data: clientProfile } = await supabase
-      .from("profiles")
-      .select("timezone, phone")
-      .eq("id", job.client_id)
-      .maybeSingle();
+    // Owner's own row (job.client_id === viewer) — read via service role.
+    const clientProfile = await loadOwnProfile(job.client_id);
 
     // Same "About the client" summary the freelancer sees — driven by the ONE
     // source of truth (getClientInfo) so the owner and freelancer views can
@@ -920,8 +918,9 @@ export default async function JobDetailsPage({
     .limit(1)
     .maybeSingle();
 
-  // Client extras for the sidebar (phone verification, local time, active count).
-  const { data: clientExtra } = await supabase
+  // Client extras for the sidebar (cross-user) — read via the service role
+  // since phone is revoked from the authenticated role.
+  const { data: clientExtra } = await createAdminClient()
     .from("profiles")
     .select("phone, timezone")
     .eq("id", job.client_id)

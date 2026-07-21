@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ChatThread } from "@/components/chat-thread";
@@ -169,12 +170,9 @@ export default async function ConversationPage({
     .neq("sender_id", user.id)
     .eq("read", false);
 
-  // My profile — core columns first (never breaks pre-migration), then flags.
-  const { data: myProfile } = await supabase
-    .from("profiles")
-    .select("full_name, email, suspended, role")
-    .eq("id", user.id)
-    .maybeSingle();
+  // My profile (own row) — read via the service role so it keeps working with
+  // email/phone revoked from the authenticated role.
+  const myProfile = await loadOwnProfile(user.id);
   let rulesAccepted = true;
   let outOfOffice = false;
   let oooUntil: string | null = null;

@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { notify } from "@/lib/notify";
 import { recalcHealth } from "@/lib/health";
 import { redirect } from "next/navigation";
@@ -72,11 +73,7 @@ export async function submitReview(
   if (error) {
     console.error("REVIEW ERROR:", error);
   } else {
-    const { data: me } = await supabase
-      .from("profiles")
-      .select("full_name, username, email")
-      .eq("id", user.id)
-      .maybeSingle();
+    const me = await loadOwnProfile(user.id);
     const who = me?.full_name || me?.username || me?.email || "Someone";
     await notify(
       supabase,

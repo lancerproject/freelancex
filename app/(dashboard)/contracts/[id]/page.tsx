@@ -199,11 +199,7 @@ export default async function ContractDetailsPage({
           .select("*")
           .eq("conversation_id", conversation.id)
           .order("created_at", { ascending: true }),
-        supabase
-          .from("profiles")
-          .select("full_name, email, suspended")
-          .eq("id", user.id)
-          .maybeSingle(),
+        loadOwnProfile(user.id).then((p) => ({ data: p })),
         supabase
           .from("saved_messages")
           .select("message_id")

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { WARNING_LIMIT } from "@/lib/moderation";
 import {
   adminSuspendUser,
@@ -12,9 +13,12 @@ export const metadata = { title: "Trust & Safety | Xwork Admin" };
 
 export default async function AdminPage() {
   const { supabase } = await requireAdmin();
+  // Admins legitimately view other users' email — read profiles via the
+  // service role since email is revoked from the authenticated role.
+  const admin = createAdminClient();
 
   // Flagged accounts: anyone with warnings or a suspension.
-  const { data: flaggedRaw } = await supabase
+  const { data: flaggedRaw } = await admin
     .from("profiles")
     .select("id, full_name, email, username, role, warnings, suspended, suspension_reason")
     .or("warnings.gt.0,suspended.eq.true")
@@ -36,7 +40,7 @@ export default async function AdminPage() {
   );
   const nameById: Record<string, string> = {};
   if (partyIds.length) {
-    const { data: parties } = await supabase
+    const { data: parties } = await admin
       .from("profiles")
       .select("id, full_name, email")
       .in("id", partyIds);

@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase-server";
+import { loadOwnProfile } from "@/lib/own-profile";
 import { notify } from "@/lib/notify";
 import { identityBlocked } from "@/lib/identity";
 import { isRateLimited } from "@/lib/rate-limit";
@@ -57,11 +58,7 @@ export async function submitProposal(jobId: string, formData: FormData) {
     redirect(`/jobs/${jobId}/proposal?error=full`);
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, username, email")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await loadOwnProfile(user.id);
 
   const coverLetter = formData.get("cover_letter") as string;
 
