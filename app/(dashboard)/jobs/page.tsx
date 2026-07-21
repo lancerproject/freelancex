@@ -2,8 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { FreelancerJobFeed } from "@/components/freelancer-job-feed";
+import { SaveSearchModal } from "@/components/save-search-modal";
+import { SavedSearchChips } from "@/components/saved-search-chips";
 import { CATEGORIES } from "@/lib/categories";
-import { saveSearch, deleteSavedSearch } from "./search-actions";
 
 // Always render fresh so clicking "Find work" shows every newly-posted job
 // immediately (no stale client Router Cache between visits).
@@ -171,19 +172,12 @@ export default async function JobsPage({
         {/* Save this search → powers "My Feed" */}
         <div className="flex flex-wrap items-center gap-3 mb-2">
           {hasCriteria && !alreadySaved ? (
-            <form action={saveSearch}>
-              <input type="hidden" name="q" value={sp.q ?? ""} />
-              <input type="hidden" name="category" value={sp.category ?? ""} />
-              <input
-                type="hidden"
-                name="experience_level"
-                value={sp.experience_level ?? ""}
-              />
-              <input type="hidden" name="min_budget" value={sp.min_budget ?? ""} />
-              <button className="inline-flex items-center gap-1.5 border border-primary text-primary rounded-full px-4 py-1.5 text-sm font-medium hover:bg-primary/10">
-                ♡ Save search
-              </button>
-            </form>
+            <SaveSearchModal
+              q={sp.q ?? ""}
+              category={sp.category ?? ""}
+              experienceLevel={sp.experience_level ?? ""}
+              minBudget={sp.min_budget ?? ""}
+            />
           ) : hasCriteria && alreadySaved ? (
             <span className="text-sm text-muted-foreground">✓ Search saved</span>
           ) : null}
@@ -202,43 +196,8 @@ export default async function JobsPage({
           )}
         </div>
 
-        {/* Your saved searches */}
-        {savedSearches.length > 0 && (
-          <div className="mb-4">
-            <p className="text-xs text-muted-foreground mb-2">
-              Your saved searches
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {savedSearches.map((s) => {
-                const label =
-                  [s.query, s.category].filter(Boolean).join(" · ") ||
-                  "All jobs";
-                const href = `/jobs?${new URLSearchParams({
-                  ...(s.query ? { q: s.query } : {}),
-                  ...(s.category ? { category: s.category } : {}),
-                }).toString()}`;
-                return (
-                  <span
-                    key={s.id}
-                    className="inline-flex items-center gap-2 bg-secondary text-foreground rounded-full pl-3 pr-2 py-1 text-sm"
-                  >
-                    <Link href={href} className="hover:underline">
-                      {label}
-                    </Link>
-                    <form action={deleteSavedSearch.bind(null, s.id)}>
-                      <button
-                        aria-label="Remove saved search"
-                        className="text-muted-foreground hover:text-red-500"
-                      >
-                        ✕
-                      </button>
-                    </form>
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {/* Your saved searches — click to apply, or Manage to rename/remove */}
+        <SavedSearchChips searches={savedSearches} />
 
         <h2 className="text-2xl font-bold text-foreground mt-6 mb-4">
           Jobs you might like

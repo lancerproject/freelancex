@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toggleSaveJobQuiet } from "@/app/saved/actions";
-import { saveSearch } from "@/app/(dashboard)/jobs/search-actions";
+import { SaveSearchModal } from "@/components/save-search-modal";
 import { getJobPanelData } from "@/app/(dashboard)/jobs/client-actions";
 import { OtherOpenJobs } from "@/components/other-open-jobs";
 import { CopyLink } from "@/components/copy-link";
@@ -18,11 +18,18 @@ type Job = any;
 
 type SavedSearch = {
   id: string;
+  name?: string | null;
   query?: string | null;
   category?: string | null;
   experience_level?: string | null;
   min_budget?: number | null;
 };
+
+function savedSearchLabel(s: SavedSearch) {
+  return (
+    s.name || [s.query, s.category].filter(Boolean).join(" · ") || "Any"
+  );
+}
 
 // Does a job match a saved search? All set criteria must match.
 function matchesSearch(job: Job, s: SavedSearch) {
@@ -135,6 +142,8 @@ export function FreelancerJobFeed({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlTab]);
   const [saved, setSaved] = useState<Set<string>>(new Set(savedIds));
+  // Which saved search is active under the My Feed tab ("all" = any of them).
+  const [myFeedFilter, setMyFeedFilter] = useState<string>("all");
   // Disliked jobs collapse in place (showing the reason + an Expand link),
   // exactly like Upwork — they are NOT removed from the feed.
   const [dismissed, setDismissed] = useState<Record<string, string>>({});
@@ -287,11 +296,14 @@ export function FreelancerJobFeed({
       };
 
       if (tab === "My Feed") {
-        // Jobs matching ANY of your saved searches, newest first.
-        if (savedSearches.length) {
-          base = base.filter((j) =>
-            savedSearches.some((s) => matchesSearch(j, s))
-          );
+        // Jobs matching your saved searches, newest first. "all" = any of them;
+        // otherwise just the one selected in the sub-pill row.
+        const active =
+          myFeedFilter === "all"
+            ? savedSearches
+            : savedSearches.filter((s) => s.id === myFeedFilter);
+        if (active.length) {
+          base = base.filter((j) => active.some((s) => matchesSearch(j, s)));
         }
         base = [...base].sort(
           (a, b) =>
@@ -342,7 +354,7 @@ export function FreelancerJobFeed({
     }
     return base;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, jobs, saved, myTokens, hasSkills, personalized, savedSearches, expFilter, propFilter, clientFilter, budgetFilter, catFilter, sort]);
+  }, [tab, jobs, saved, myTokens, hasSkills, personalized, savedSearches, expFilter, propFilter, clientFilter, budgetFilter, catFilter, sort, myFeedFilter]);
 
   // Left filter sidebar (Upwork-style) — used on the search page, with a live
   // result count next to each option.
@@ -461,26 +473,12 @@ export function FreelancerJobFeed({
               {/* Save this search → it powers the "My Feed" tab (Upwork parity) */}
               {!personalized &&
                 (searchQuery || catFilter.size > 0 || expFilter.size > 0) && (
-                  <form action={saveSearch}>
-                    <input type="hidden" name="q" value={searchQuery} />
-                    <input
-                      type="hidden"
-                      name="category"
-                      value={Array.from(catFilter)[0] || ""}
-                    />
-                    <input
-                      type="hidden"
-                      name="experience_level"
-                      value={Array.from(expFilter)[0] || ""}
-                    />
-                    <input type="hidden" name="min_budget" value="" />
-                    <button
-                      type="submit"
-                      className="flex items-center gap-1.5 text-sm border border-primary text-primary rounded-full px-3 py-1.5 hover:bg-primary/10 whitespace-nowrap"
-                    >
-                      ♡ Save search
-                    </button>
-                  </form>
+                  <SaveSearchModal
+                    q={searchQuery}
+                    category={Array.from(catFilter)[0] || ""}
+                    experienceLevel={Array.from(expFilter)[0] || ""}
+                    minBudget=""
+                  />
                 )}
               {!personalized && (
                 <select
@@ -509,11 +507,46 @@ export function FreelancerJobFeed({
             </div>
           </div>
 
+      {/* My Feed: pick a specific saved search, or "All" (Upwork parity). */}
+      {tab === "My Feed" && savedSearches.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-4">
+          <button
+            onClick={() => setMyFeedFilter("all")}
+            className={`text-sm rounded-full px-3 py-1 border ${
+              myFeedFilter === "all"
+                ? "border-primary text-primary bg-primary/10 font-medium"
+                : "border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            All
+          </button>
+          {savedSearches.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setMyFeedFilter(s.id)}
+              className={`text-sm rounded-full px-3 py-1 border whitespace-nowrap ${
+                myFeedFilter === s.id
+                  ? "border-primary text-primary bg-primary/10 font-medium"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {savedSearchLabel(s)}
+            </button>
+          ))}
+          <Link
+            href="/jobs"
+            className="text-sm rounded-full px-3 py-1 text-primary hover:underline"
+          >
+            Manage
+          </Link>
+        </div>
+      )}
+
       <p className="text-sm text-muted-foreground mt-4 mb-2">
         {tab === "Saved Jobs"
           ? "Jobs you've saved for later."
           : tab === "My Feed"
-          ? "Only jobs that match the skills on your profile."
+          ? "Jobs that match your saved searches."
           : hasSkills
           ? "All open jobs — the ones matching your skills are shown first."
           : "Browse open jobs. Add skills to your profile to get matched jobs."}
