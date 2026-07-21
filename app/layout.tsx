@@ -9,6 +9,7 @@ import ConditionalNavbar from "@/components/conditional-navbar";
 import { SupportWidget } from "@/components/support-widget";
 import { AppFooter } from "@/components/app-footer";
 import { IdentityBanner } from "@/components/identity-banner";
+import { RecoveryRedirect } from "@/components/recovery-redirect";
 import { computeIdentityRequired } from "@/lib/identity";
 import { notify } from "@/lib/notify";
 
@@ -144,6 +145,7 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <RecoveryRedirect />
           {user && (
             <ConditionalNavbar
               userId={user.id}
