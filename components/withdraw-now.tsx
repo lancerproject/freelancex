@@ -156,7 +156,27 @@ export function WithdrawNow({
           >
             {receipt ? (
               /* -------- Withdrawal details receipt -------- */
-              <div>
+              <div id="withdraw-receipt">
+                {/* Print only the receipt, on a clean white page — not the
+                    dark modal/overlay/nav behind it. Scoped: this <style> is in
+                    the DOM only while the receipt is open, so printing other
+                    pages is unaffected. */}
+                <style>{`
+                  @media print {
+                    body * { visibility: hidden !important; }
+                    #withdraw-receipt, #withdraw-receipt * { visibility: visible !important; color:#111 !important; }
+                    #withdraw-receipt { position: fixed !important; inset: 0 !important; margin:0 !important; padding: 40px !important; background:#fff !important; border:0 !important; box-shadow:none !important; max-width:none !important; overflow:visible !important; }
+                    #withdraw-receipt .no-print { display:none !important; }
+                  }
+                `}</style>
+                <div className="hidden print:block mb-4">
+                  <span className="text-xl font-extrabold">
+                    <span style={{ color: "#6d28d9" }}>X</span>work
+                  </span>
+                  <p style={{ color: "#555", fontSize: "12px", marginTop: "2px" }}>
+                    Withdrawal receipt
+                  </p>
+                </div>
                 <h2 className="text-2xl font-bold text-foreground">
                   Withdrawal details
                 </h2>
@@ -192,7 +212,7 @@ export function WithdrawNow({
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 mt-6 print:hidden">
+                <div className="flex items-center gap-4 mt-6 no-print">
                   <button
                     type="button"
                     onClick={close}
