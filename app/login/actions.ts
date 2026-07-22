@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@/lib/supabase-server";
 import { wizardResumePath } from "@/lib/wizard";
 import {
@@ -122,12 +123,39 @@ export async function loginWithEmail(formData: FormData) {
 }
 
 export async function forgotPassword(formData: FormData) {
-  const supabase = await createClient();
   const email = (formData.get("email") as string)?.trim();
   if (email) {
     const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const cookieStore = await cookies();
+    // Password recovery uses the IMPLICIT flow: the emailed link carries the
+    // session in its URL fragment, so it works no matter which browser or email
+    // app opens it. (The default PKCE flow needs a "verifier" that must survive
+    // to the exact same browser — reset links opened from a mail app land in a
+    // different context and fail with "link expired".) The /reset-password page
+    // parses the fragment and completes the update client-side.
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: { flowType: "implicit" },
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              );
+            } catch {
+              /* read-only context — safe to ignore */
+            }
+          },
+        },
+      }
+    );
     await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${siteUrl}/auth/callback?next=/reset-password`,
+      redirectTo: `${siteUrl}/reset-password`,
     });
   }
   redirect("/login?reset=sent");
