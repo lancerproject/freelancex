@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { getBrowserSupabase } from "@/lib/supabase-browser";
 
 // Password-recovery safety net.
 //
@@ -38,34 +37,12 @@ export function RecoveryRedirect() {
     if (!isRecoveryHash && !strayCode) return;
 
     if (isRecoveryHash) {
-      // Instantiating the browser client makes @supabase/ssr parse the recovery
-      // tokens from the URL hash and persist the session to cookies (so the
-      // server-side set-password action can see it). Then move to the form.
-      const supabase = getBrowserSupabase();
-      let done = false;
-      const go = () => {
-        if (done) return;
-        done = true;
-        window.location.replace("/reset-password");
-      };
-      const { data: sub } = supabase.auth.onAuthStateChange(
-        (event: string) => {
-          if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") go();
-        }
-      );
-      // In case the session was already established before we subscribed.
-      supabase.auth
-        .getSession()
-        .then(({ data }: { data: { session: unknown } }) => {
-          if (data.session) go();
-        });
-      // Fallback: navigate anyway; the reset page validates the session and
-      // shows a clear "link expired" message if it isn't there.
-      const t = setTimeout(go, 2500);
-      return () => {
-        sub.subscription.unsubscribe();
-        clearTimeout(t);
-      };
+      // Move the recovery tokens (still in the hash) to /reset-password WITHOUT
+      // touching them here — the reset page's client parses the hash itself and
+      // completes the update client-side. Forwarding the hash intact avoids any
+      // race on persisting the session before navigating.
+      window.location.replace(`/reset-password${search}${hash}`);
+      return;
     }
 
     if (strayCode) {
