@@ -24,8 +24,41 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Xwork - Freelance Marketplace",
-  description: "Connect clients and freelancers",
+  metadataBase: new URL("https://thexwork.com"),
+  title: "Xwork — Hire Freelancers & Find Freelance Jobs",
+  description:
+    "Xwork is a freelance marketplace to hire skilled freelancers or find freelance work — development, design, writing, marketing and more. Post a job for free and pay safely with escrow-protected milestones.",
+  applicationName: "Xwork",
+  keywords: [
+    "freelance marketplace",
+    "hire freelancers",
+    "freelance jobs",
+    "find freelance work",
+    "remote work",
+    "post a job",
+    "freelancers",
+    "freelance platform",
+  ],
+  alternates: { canonical: "/" },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
+  openGraph: {
+    type: "website",
+    siteName: "Xwork",
+    url: "https://thexwork.com",
+    title: "Xwork — Hire Freelancers & Find Freelance Jobs",
+    description:
+      "Hire skilled freelancers or find freelance work on Xwork. Post a job for free; pay safely with escrow-protected milestones.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Xwork — Hire Freelancers & Find Freelance Jobs",
+    description:
+      "Hire skilled freelancers or find freelance work on Xwork. Post a job for free; pay safely with escrow-protected milestones.",
+  },
 };
 
 export default async function RootLayout({
@@ -132,6 +165,35 @@ export default async function RootLayout({
     }
   }
 
+  // Structured data (JSON-LD) — helps Google understand the site's identity and
+  // primary sections. It's a prerequisite for (never a guarantee of) sitelinks;
+  // Google still generates those automatically once the site has enough
+  // authority/traffic. The SearchAction also makes the site eligible for the
+  // Google search box under the brand result.
+  const orgLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Xwork",
+    url: "https://thexwork.com",
+    logo: "https://thexwork.com/icon.svg",
+    description:
+      "Xwork is a freelance marketplace connecting clients with skilled freelancers for design, development, writing, marketing and more.",
+  };
+  const siteLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Xwork",
+    url: "https://thexwork.com",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: "https://thexwork.com/jobs?q={search_term_string}",
+      },
+      "query-input": "required name=search_term_string",
+    },
+  };
+
   return (
     <html
       lang="en"
@@ -139,6 +201,14 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(siteLd) }}
+        />
         <ThemeProvider
           attribute="class"
           defaultTheme="light"

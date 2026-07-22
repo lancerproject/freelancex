@@ -1,0 +1,23 @@
+# Xwork
+
+> Xwork (thexwork.com) is a freelance marketplace that connects clients with skilled freelancers for design, development, writing, marketing and more. Clients post jobs for free and pay safely through escrow-protected milestones; freelancers find work, submit proposals, and get paid securely.
+
+## Key facts
+- Post a job: always free for clients.
+- Payments: funds are held in escrow and released as milestones are approved.
+- Service fee: 10% for freelancers on the standard plan, 5% on Pro; clients pay no service fee.
+- Identity verification, reviews/ratings, and off-platform-payment protection are built in.
+
+## Main pages
+- [Home](https://thexwork.com/): overview of the marketplace.
+- [Find work (jobs)](https://thexwork.com/jobs): browse and search open freelance jobs.
+- [Find talent (freelancers)](https://thexwork.com/freelancers): browse and search freelancer profiles.
+- [How it works](https://thexwork.com/hire): how hiring on Xwork works.
+- [Pricing](https://thexwork.com/pricing): fees and plans.
+- [Sign up](https://thexwork.com/register): create a client or freelancer account.
+- [Log in](https://thexwork.com/login).
+
+## Policies
+- [Trust & Safety](https://thexwork.com/trust-safety)
+- [Terms of Service](https://thexwork.com/terms)
+- [Privacy Policy](https://thexwork.com/privacy)
