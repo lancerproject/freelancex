@@ -21,28 +21,60 @@ export function ResetPasswordForm() {
 
   useEffect(() => {
     let active = true;
-    // The browser client parses a recovery hash when it initialises; the
-    // PASSWORD_RECOVERY / signed-in event fires once the session is ready.
-    const { data: sub } = supabase.auth.onAuthStateChange(
-      (_event: string, session: unknown) => {
-        if (active && session) {
-          setHasSession(true);
-          setError("");
-        }
+
+    const finish = (ok: boolean) => {
+      if (!active) return;
+      if (ok) setError("");
+      setHasSession(ok);
+      setChecked(true);
+    };
+
+    const init = async () => {
+      // The implicit recovery link arrives with the session in the URL fragment:
+      //   #access_token=...&refresh_token=...&type=recovery
+      // Parse it and establish the session explicitly (don't rely on the SSR
+      // client auto-detecting it, which it doesn't do for the implicit flow).
+      const raw = window.location.hash.startsWith("#")
+        ? window.location.hash.slice(1)
+        : "";
+      const frag = new URLSearchParams(raw);
+      const errorCode = frag.get("error_code") || frag.get("error");
+      const accessToken = frag.get("access_token");
+      const refreshToken = frag.get("refresh_token");
+
+      // Clean the tokens out of the address bar as soon as we've read them.
+      const clearHash = () =>
+        window.history.replaceState(
+          null,
+          "",
+          window.location.pathname + window.location.search
+        );
+
+      if (errorCode) {
+        clearHash();
+        finish(false);
+        return;
       }
-    );
-    supabase.auth
-      .getSession()
-      .then(({ data }: { data: { session: unknown } }) => {
-        if (!active) return;
-        if (data.session) setHasSession(true);
-        // Give a hash-based session a brief moment to be parsed before we
-        // decide the link is invalid.
-        setTimeout(() => active && setChecked(true), 1200);
-      });
+
+      if (accessToken && refreshToken) {
+        const { data, error: setErr } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        clearHash();
+        finish(!setErr && !!data.session);
+        return;
+      }
+
+      // No fragment tokens — a PKCE link may have set the session via cookies
+      // at /auth/callback. Fall back to whatever session the client holds.
+      const { data } = await supabase.auth.getSession();
+      finish(!!data.session);
+    };
+
+    init();
     return () => {
       active = false;
-      sub.subscription.unsubscribe();
     };
   }, [supabase]);
 
