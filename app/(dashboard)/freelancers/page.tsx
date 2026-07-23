@@ -10,7 +10,12 @@ import { LANGUAGES, PROFICIENCY_LEVELS } from "@/lib/languages";
 import { HIRE_CATEGORIES } from "@/lib/hire-skills";
 import { suggestSkills } from "@/lib/skill-suggestions";
 
-export const metadata = { title: "Search for talent | Xwork" };
+export const metadata = {
+  title: "Hire Freelancers — Browse Top Talent | Xwork",
+  description:
+    "Find and hire skilled freelancers on Xwork — browse profiles, skills, ratings and rates across development, design, writing, marketing and more.",
+  alternates: { canonical: "/freelancers" },
+};
 
 // Upwork-style talent search. Matches any keyword (name, title, skill,
 // category, language, location) and ranks results by real marketplace

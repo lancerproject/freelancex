@@ -10,6 +10,13 @@ import { CATEGORIES } from "@/lib/categories";
 // immediately (no stale client Router Cache between visits).
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+  title: "Find Freelance Jobs — Browse Open Work | Xwork",
+  description:
+    "Browse and apply to open freelance jobs on Xwork — development, design, writing, marketing and more. Filter by category, budget and experience level.",
+  alternates: { canonical: "/jobs" },
+};
+
 type SearchParams = {
   q?: string;
   category?: string;
