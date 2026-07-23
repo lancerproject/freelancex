@@ -39,7 +39,10 @@ export const metadata: Metadata = {
     "freelancers",
     "freelance platform",
   ],
-  alternates: { canonical: "/" },
+  // NOTE: no site-wide `alternates.canonical` here — a global canonical made
+  // every page point at the homepage, telling Google the sub-pages were
+  // duplicates and blocking their indexing. Each page self-canonicalizes to the
+  // URL Google crawls; content pages set their own canonical in generateMetadata.
   robots: {
     index: true,
     follow: true,
