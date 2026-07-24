@@ -254,6 +254,27 @@ export async function adminRestrictFunds(userId: string, formData: FormData) {
   redirect(`/admin/users?restricted=${userId}`);
 }
 
+// Moderate a single chat message: replaces its content with a removal notice
+// (visible to both parties) and strips any attachment. Soft-remove keeps the
+// thread intact rather than leaving a confusing gap.
+export async function adminRemoveMessage(
+  messageId: string,
+  conversationId: string
+) {
+  await ensureAdmin();
+  const admin = createAdminClient();
+  await admin
+    .from("messages")
+    .update({
+      content: "🚫 This message was removed by Xwork moderation.",
+      attachment_url: null,
+      attachment_name: null,
+    })
+    .eq("id", messageId);
+  revalidatePath(`/admin/messages/${conversationId}`);
+  redirect(`/admin/messages/${conversationId}`);
+}
+
 // Lift a fund restriction and resolve the related violation.
 export async function adminLiftFundsRestriction(userId: string) {
   const { supabase } = await ensureAdmin();

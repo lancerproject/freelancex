@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase-admin";
+import { adminRemoveMessage } from "../../actions";
 
 export const metadata = { title: "Conversation | Xwork Admin" };
 
@@ -76,10 +77,25 @@ export default async function AdminConversationPage({
           {messages.length} message{messages.length === 1 ? "" : "s"}
           {convo.ended_at ? " · ended" : ""}
         </p>
-        <p className="text-xs text-muted-foreground mb-6">
-          Read-only admin oversight — messages are shown exactly as the two
-          parties see them.
+        <p className="text-xs text-muted-foreground mb-3">
+          Admin oversight — you can remove individual messages, and manage either
+          participant from the buttons below.
         </p>
+
+        {/* Participant management shortcuts */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {[convo.participant_1, convo.participant_2]
+            .filter(Boolean)
+            .map((uid) => (
+              <Link
+                key={uid}
+                href={`/admin/users?q=${encodeURIComponent(name(uid))}`}
+                className="text-sm rounded-full border border-border px-3 py-1.5 text-foreground hover:bg-secondary"
+              >
+                Manage {name(uid)}
+              </Link>
+            ))}
+        </div>
 
         <div className="space-y-3">
           {messages.length === 0 ? (
@@ -124,6 +140,17 @@ export default async function AdminConversationPage({
                     >
                       📎 {m.attachment_name || "Attachment"}
                     </a>
+                  )}
+                  {m.content !==
+                    "🚫 This message was removed by Xwork moderation." && (
+                    <form
+                      action={adminRemoveMessage.bind(null, m.id, id)}
+                      className="mt-2"
+                    >
+                      <button className="text-xs font-medium text-red-500 hover:underline">
+                        Remove message
+                      </button>
+                    </form>
                   )}
                 </div>
               );
