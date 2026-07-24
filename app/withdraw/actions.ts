@@ -264,6 +264,14 @@ export async function requestWithdrawal(
   if (me?.suspended) {
     return { ok: false, error: "Your account is suspended, so funds can't be withdrawn." };
   }
+  if (me?.funds_restricted) {
+    return {
+      ok: false,
+      error:
+        me?.funds_restricted_reason ||
+        "Your withdrawals are currently on hold by Xwork Trust & Safety. Please contact support.",
+    };
+  }
   if (!me?.id_verified) {
     return { ok: false, error: "Verify your identity before withdrawing." };
   }

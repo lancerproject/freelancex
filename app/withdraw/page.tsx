@@ -69,6 +69,20 @@ export default async function WithdrawalsPage() {
       <div className="max-w-[1100px] mx-auto">
         <h1 className="text-3xl font-bold text-foreground mb-8">Withdrawals</h1>
 
+        {/* Trust & Safety hold on withdrawals. */}
+        {meProfile?.funds_restricted && (
+          <div className="mb-6 rounded-xl border border-red-500/40 bg-red-500/10 p-4">
+            <p className="font-semibold text-foreground">
+              Your withdrawals are on hold
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {meProfile.funds_restricted_reason ||
+                "Xwork Trust & Safety has placed a temporary hold on your withdrawals while your account is reviewed."}{" "}
+              Please contact support if you believe this is a mistake.
+            </p>
+          </div>
+        )}
+
         {/* Tax information is required before any withdrawal. */}
         {!taxComplete && (
           <div className="mb-6 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
@@ -115,7 +129,11 @@ export default async function WithdrawalsPage() {
           </p>
 
           <div className="flex items-center gap-5 mt-6">
-            {verifyRequired ? (
+            {meProfile?.funds_restricted ? (
+              <span className="inline-flex items-center gap-2 rounded-full bg-red-500/10 text-red-600 px-5 py-2.5 text-sm font-semibold">
+                🔒 Withdrawals on hold
+              </span>
+            ) : verifyRequired ? (
               <Link
                 href="/settings/identity?from=withdraw"
                 className="bg-primary text-primary-foreground px-6 py-2.5 rounded-full font-semibold hover:opacity-90"

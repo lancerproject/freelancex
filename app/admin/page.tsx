@@ -109,6 +109,12 @@ export default async function AdminPage() {
           >
             🧹 Job moderation
           </Link>
+          <Link
+            href="/admin/messages"
+            className="border border-border text-foreground rounded-full px-4 py-1.5 text-sm font-medium hover:bg-secondary"
+          >
+            💬 Chat rooms
+          </Link>
         </div>
 
         {/* Stats */}

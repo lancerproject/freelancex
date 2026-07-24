@@ -37,7 +37,8 @@ export type ViolationType =
   | "abusive_language"
   | "contact_info_shared"
   | "fake_portfolio"
-  | "soliciting_outside_platform";
+  | "soliciting_outside_platform"
+  | "funds_restricted";
 
 type CatalogEntry = {
   label: string;
@@ -245,6 +246,16 @@ export const VIOLATION_CATALOG: Record<ViolationType, CatalogEntry> = {
     description:
       "You asked for or accepted payment outside Xwork's payment system. This is strictly against our Terms of Service.",
     action: { label: "Read Policy", href: "/terms" },
+    singleton: true,
+  },
+  funds_restricted: {
+    label: "Funds Restricted by Trust & Safety",
+    points: 30,
+    severity: "critical",
+    section: "policy",
+    description:
+      "Xwork's Trust & Safety team has placed a hold on your withdrawals while an issue with your account is reviewed.",
+    action: SUPPORT,
     singleton: true,
   },
 };

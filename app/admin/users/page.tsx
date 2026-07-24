@@ -6,6 +6,8 @@ import {
   adminSuspendUser,
   adminReinstateUser,
   adminClearWarnings,
+  adminRestrictFunds,
+  adminLiftFundsRestriction,
 } from "../actions";
 
 export const metadata = { title: "Users | Xwork Admin" };
@@ -15,18 +17,29 @@ export const metadata = { title: "Users | Xwork Admin" };
 export default async function AdminUsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; role?: string }>;
 }) {
   await requireAdmin();
-  const { q } = await searchParams;
+  const { q, role: roleParam } = await searchParams;
   const query = (q || "").trim();
+  const role =
+    roleParam === "client" || roleParam === "freelancer" ? roleParam : "all";
+
+  const qs = (r: string) =>
+    `?${new URLSearchParams({
+      ...(query ? { q: query } : {}),
+      ...(r !== "all" ? { role: r } : {}),
+    }).toString()}`;
 
   const admin = createAdminClient();
   let builder = admin
     .from("profiles")
     .select(
-      "id, full_name, username, email, role, warnings, suspended, account_status, health_score, health_badge, id_verified, created_at, total_spent"
+      "id, full_name, username, email, role, warnings, suspended, account_status, health_score, health_badge, id_verified, created_at, total_spent, funds_restricted"
     );
+
+  // Separate Clients / Freelancers views (admin filter).
+  if (role !== "all") builder = builder.eq("role", role);
 
   if (query) {
     // Escape PostgREST or() reserved chars in user input.
@@ -62,12 +75,39 @@ export default async function AdminUsersPage({
         >
           ← Trust &amp; Safety
         </Link>
-        <h1 className="text-3xl font-bold text-foreground mt-3">Users</h1>
-        <p className="text-muted-foreground mt-1 mb-6">
+        <h1 className="text-3xl font-bold text-foreground mt-3">
+          {role === "client"
+            ? "Client accounts"
+            : role === "freelancer"
+              ? "Freelancer accounts"
+              : "Users"}
+        </h1>
+        <p className="text-muted-foreground mt-1 mb-4">
           Search any account and review its risk signals.
         </p>
 
-        {/* Search */}
+        {/* Separate Clients / Freelancers views */}
+        <div className="flex gap-2 mb-5 flex-wrap">
+          {[
+            { key: "all", label: "All accounts" },
+            { key: "client", label: "👤 Clients" },
+            { key: "freelancer", label: "🧑‍💻 Freelancers" },
+          ].map((t) => (
+            <Link
+              key={t.key}
+              href={`/admin/users${qs(t.key)}`}
+              className={`text-sm rounded-full px-4 py-1.5 border ${
+                role === t.key
+                  ? "border-primary text-primary bg-primary/10 font-medium"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t.label}
+            </Link>
+          ))}
+        </div>
+
+        {/* Search (keeps the current Clients/Freelancers filter) */}
         <form method="get" className="flex gap-2 mb-8 max-w-xl">
           <input
             type="search"
@@ -76,6 +116,7 @@ export default async function AdminUsersPage({
             placeholder="Search by name, email or username…"
             className="flex-1 border border-border rounded-full px-4 py-2.5 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
+          {role !== "all" && <input type="hidden" name="role" value={role} />}
           <button className="bg-primary text-primary-foreground rounded-full px-6 py-2.5 text-sm font-semibold hover:opacity-90">
             Search
           </button>
@@ -135,6 +176,11 @@ export default async function AdminUsersPage({
                         <span className="text-muted-foreground">
                           Joined {fmt(u.created_at)}
                         </span>
+                        {u.funds_restricted && (
+                          <span className="rounded-full bg-red-500/10 text-red-500 px-2 py-0.5 font-medium">
+                            🔒 Funds on hold
+                          </span>
+                        )}
                         {u.role === "client" && (
                           <span className="text-muted-foreground">
                             ${Number(u.total_spent ?? 0).toLocaleString()} spent
@@ -158,6 +204,41 @@ export default async function AdminUsersPage({
                               </button>
                             </form>
                           )}
+                          {/* Fund restriction — freelancers only (they withdraw). */}
+                          {u.role === "freelancer" &&
+                            (u.funds_restricted ? (
+                              <form
+                                action={adminLiftFundsRestriction.bind(null, u.id)}
+                              >
+                                <button className="text-sm font-medium text-primary hover:underline">
+                                  Lift funds hold
+                                </button>
+                              </form>
+                            ) : (
+                              <details className="relative">
+                                <summary className="text-sm font-medium text-amber-600 hover:underline cursor-pointer list-none">
+                                  Restrict funds
+                                </summary>
+                                <form
+                                  action={adminRestrictFunds.bind(null, u.id)}
+                                  className="absolute right-0 mt-2 w-72 z-10 rounded-xl border border-border bg-card p-4 shadow-lg space-y-3"
+                                >
+                                  <p className="text-xs text-muted-foreground">
+                                    Holds all withdrawals and records a violation.
+                                    The freelancer can still work.
+                                  </p>
+                                  <textarea
+                                    name="reason"
+                                    rows={3}
+                                    placeholder="Reason (sent to the freelancer)"
+                                    className="w-full text-sm bg-background border border-border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-ring"
+                                  />
+                                  <button className="w-full bg-amber-500 text-white rounded-full py-2 text-sm font-semibold hover:opacity-90">
+                                    Confirm hold
+                                  </button>
+                                </form>
+                              </details>
+                            ))}
                           <details className="relative">
                             <summary className="text-sm font-medium text-red-500 hover:underline cursor-pointer list-none">
                               Suspend

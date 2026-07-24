@@ -214,3 +214,81 @@ export async function adminDismissJobReports(jobId: string) {
   revalidatePath("/admin/jobs");
   redirect("/admin/jobs");
 }
+
+// Restrict a freelancer's funds: puts a hold on withdrawals (they can still
+// work) AND records a violation on the account. Distinct from a full suspension.
+export async function adminRestrictFunds(userId: string, formData: FormData) {
+  const { supabase } = await ensureAdmin();
+  const reason =
+    (formData.get("reason") as string)?.trim() ||
+    "Your withdrawals are on hold while Xwork Trust & Safety reviews your account.";
+
+  const admin = createAdminClient();
+  await admin
+    .from("profiles")
+    .update({
+      funds_restricted: true,
+      funds_restricted_reason: reason,
+      funds_restricted_at: new Date().toISOString(),
+    })
+    .eq("id", userId);
+
+  // Record the matching violation (feeds account health + the violations log).
+  try {
+    const { addViolation } = await import("@/lib/health");
+    await addViolation({ userId, type: "funds_restricted", description: reason });
+  } catch {
+    /* best-effort */
+  }
+
+  await notify(
+    supabase,
+    userId,
+    "account",
+    "Your withdrawals have been put on hold",
+    `${reason} If you believe this is a mistake, please contact support.`,
+    "/withdraw"
+  );
+
+  revalidatePath("/admin/users");
+  redirect(`/admin/users?restricted=${userId}`);
+}
+
+// Lift a fund restriction and resolve the related violation.
+export async function adminLiftFundsRestriction(userId: string) {
+  const { supabase } = await ensureAdmin();
+  const admin = createAdminClient();
+  await admin
+    .from("profiles")
+    .update({
+      funds_restricted: false,
+      funds_restricted_reason: null,
+      funds_restricted_at: null,
+    })
+    .eq("id", userId);
+
+  try {
+    const { recalcHealth } = await import("@/lib/health");
+    await admin
+      .from("violations")
+      .update({ status: "resolved", resolved_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .eq("violation_type", "funds_restricted")
+      .in("status", ["active", "under_review"]);
+    await recalcHealth(userId, "funds_restriction_lifted");
+  } catch {
+    /* best-effort */
+  }
+
+  await notify(
+    supabase,
+    userId,
+    "account",
+    "Your withdrawals have been re-enabled",
+    "The hold on your withdrawals has been lifted. You can withdraw your available balance again.",
+    "/withdraw"
+  );
+
+  revalidatePath("/admin/users");
+  redirect("/admin/users");
+}
