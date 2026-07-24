@@ -398,6 +398,186 @@ export default async function PublicProfilePage({
     ? `/freelancer/${profile.username}`
     : `/profile/${id}`;
 
+  // ───────────────────────── CLIENT PROFILE ─────────────────────────
+  // Client accounts get their OWN public profile (jobs posted, hires, spend,
+  // reviews left by freelancers) — never the freelancer work-history layout.
+  if (profile.role === "client") {
+    const adminC = createAdminClient();
+    const [{ count: jobsPosted }, { count: hires }] = await Promise.all([
+      adminC
+        .from("jobs")
+        .select("*", { count: "exact", head: true })
+        .eq("client_id", id),
+      adminC
+        .from("contracts")
+        .select("*", { count: "exact", head: true })
+        .eq("client_id", id),
+    ]);
+    const spent = Number(profile.total_spent ?? 0);
+    const stats: { label: string; value: string }[] = [
+      { label: "Jobs posted", value: String(jobsPosted ?? 0) },
+      { label: "Hires", value: String(hires ?? 0) },
+      { label: "Total spent", value: `$${spent.toLocaleString()}` },
+      {
+        label: "Payment",
+        value: profile.payment_verified ? "Verified ✓" : "Not verified",
+      },
+    ];
+    return (
+      <main className="min-h-screen bg-background px-4 lg:px-12 py-8 w-full">
+        {profile.suspended && (
+          <div className="max-w-[1000px] mx-auto mb-6">
+            <SuspensionBanner self={isSelf} />
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="max-w-[1000px] mx-auto rounded-2xl border border-border bg-card p-6 mb-6">
+          <div className="flex items-start gap-5">
+            <div className="shrink-0">
+              {profile.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.avatar_url}
+                  alt=""
+                  className="w-20 h-20 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-3xl font-bold">
+                  {initials}
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-3xl font-bold text-foreground">
+                  {profile.full_name || profile.username || "Client"}
+                </h1>
+                {profile.id_verified && (
+                  <span
+                    title="Identity verified"
+                    className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-500 text-white text-xs"
+                  >
+                    ✓
+                  </span>
+                )}
+                <span className="text-xs rounded-full bg-secondary text-muted-foreground px-2 py-0.5 font-medium">
+                  Client
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                {profile.location ||
+                  [profile.city, profile.country].filter(Boolean).join(", ") ||
+                  "Location not set"}
+              </p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                <LocalTime timezone={profile.timezone} /> local time
+              </p>
+              {memberSince && (
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Member since {memberSince}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {isSelf && (
+                <Link
+                  href="/settings"
+                  className="border border-border text-foreground rounded-full px-4 py-2 text-sm font-medium hover:bg-secondary"
+                >
+                  Profile settings
+                </Link>
+              )}
+              <ShareButton path={`/profile/${id}`} label="Share" />
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-[1000px] mx-auto space-y-6">
+          {/* Client stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {stats.map((s) => (
+              <div
+                key={s.label}
+                className="rounded-2xl border border-border bg-card p-5"
+              >
+                <p className="text-2xl font-bold text-foreground">{s.value}</p>
+                <p className="text-sm text-muted-foreground mt-1">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Company (if provided) */}
+          {(profile.company_name || profile.bio) && (
+            <Card>
+              {profile.company_name && (
+                <h2 className="text-xl font-bold text-foreground mb-2">
+                  {profile.company_name}
+                </h2>
+              )}
+              {profile.bio && (
+                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                  {profile.bio}
+                </p>
+              )}
+            </Card>
+          )}
+
+          {/* Reviews left by freelancers about this client */}
+          {reviewList.length > 0 && (
+            <Card>
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-xl font-bold text-foreground">
+                  Freelancer reviews ({reviewList.length})
+                </h2>
+                <span className="inline-flex items-center gap-1.5 text-sm">
+                  <StarRating value={avgRating} />
+                  <span className="font-semibold text-foreground">
+                    {avgRating.toFixed(1)}
+                  </span>
+                  <span className="text-muted-foreground">avg</span>
+                </span>
+              </div>
+              <div className="space-y-5">
+                {reviewList.map((r) => (
+                  <div
+                    key={r.id}
+                    className="border-b border-border last:border-0 pb-5 last:pb-0"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-secondary text-foreground flex items-center justify-center text-sm font-semibold">
+                        {(r.reviewer?.full_name || "F").slice(0, 1).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {r.reviewer?.full_name || "Freelancer"}
+                        </p>
+                        <StarRating value={Number(r.rating) || 0} size="text-sm" />
+                      </div>
+                    </div>
+                    {r.comment && (
+                      <p className="text-sm text-foreground/80 mt-2 leading-relaxed">
+                        {r.comment}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {jobsPosted === 0 && hires === 0 && reviewList.length === 0 && (
+            <Card>
+              <p className="text-muted-foreground text-center py-4">
+                This client hasn&apos;t posted any jobs yet.
+              </p>
+            </Card>
+          )}
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-background px-4 lg:px-12 py-8 w-full">
       {previewing && (
