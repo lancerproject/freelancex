@@ -459,8 +459,8 @@ export function ChatThread({
 
   return (
     <>
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      {/* Messages — Upwork-style single column, grouped by sender + day */}
+      <div className="flex-1 overflow-y-auto px-6 py-4">
         {messages.length === 0 && (
           <p className="text-center text-muted-foreground text-sm mt-8">
             No messages yet. Say hello 👋
@@ -468,164 +468,182 @@ export function ChatThread({
         )}
         {messages.map((message, i) => {
           const isOwn = message.sender_id === userId;
+          const prev = i > 0 ? messages[i - 1] : null;
           const highlight =
-            highlightId === message.id
-              ? "ring-2 ring-primary rounded-2xl"
-              : "";
+            highlightId === message.id ? "ring-2 ring-primary rounded-xl" : "";
 
-          // System notices — centered, visually distinct from bubbles.
+          const sameDay = (a?: string, b?: string) =>
+            !!a && !!b && new Date(a).toDateString() === new Date(b).toDateString();
+          const showDivider = !prev || !sameDay(prev.created_at, message.created_at);
+
+          const dateDivider = showDivider ? (
+            <div className="flex items-center gap-3 my-4">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {new Date(message.created_at).toLocaleDateString(undefined, {
+                  weekday: "long",
+                  month: "short",
+                  day: "numeric",
+                })}
+              </span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+          ) : null;
+
+          const CARD_KINDS = ["system", "offer", "contract_request"];
+
+          // System notices — centered.
           if (message.kind === "system") {
             return (
-              <div key={message.id} id={`msg-${message.id}`} className={highlight}>
-                <SystemChatMessage content={message.content} />
+              <div key={message.id}>
+                {dateDivider}
+                <div id={`msg-${message.id}`} className={highlight}>
+                  <SystemChatMessage content={message.content} />
+                </div>
               </div>
             );
           }
 
           // Offer cards — persist forever; status flips in place.
-          if (message.kind === "offer" && message.offer_id) {
+          if (message.kind === "offer" && message.offer_id && offersById[message.offer_id]) {
             const offer = offersById[message.offer_id];
-            if (offer) {
-              return (
-                <div
-                  key={message.id}
-                  id={`msg-${message.id}`}
-                  className={`flex ${isOwn ? "justify-end" : "justify-start"} ${highlight}`}
-                >
+            return (
+              <div key={message.id}>
+                {dateDivider}
+                <div id={`msg-${message.id}`} className={`flex mt-3 ${highlight}`}>
                   <ChatOfferCard
                     offer={offer}
                     statusContent={message.content}
                     viewerIsFreelancer={offer.viewerIsFreelancer}
                   />
                 </div>
-              );
-            }
-          }
-
-          // Proposal intro — the freelancer's cover letter opens the chat,
-          // with a "View details" card linking to the proposal.
-          if (message.kind === "proposal_intro") {
-            return (
-              <div
-                key={message.id}
-                id={`msg-${message.id}`}
-                className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[75%] flex flex-col ${
-                    isOwn ? "items-end" : "items-start"
-                  }`}
-                >
-                  <p className="text-xs text-muted-foreground mb-1 px-1">
-                    {isOwn ? myName : otherName}
-                  </p>
-                  <div
-                    className={`rounded-2xl px-4 py-3 ${highlight} ${
-                      isOwn
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-secondary-foreground"
-                    }`}
-                  >
-                    <p className="whitespace-pre-wrap break-words">
-                      {renderRich(message.content)}
-                    </p>
-                  </div>
-                  {proposalDetailsHref && (
-                    <a
-                      href={proposalDetailsHref}
-                      className="mt-2 w-full rounded-xl bg-secondary/60 border-l-4 border-primary px-4 py-3 block hover:bg-secondary"
-                    >
-                      <span className="text-primary font-semibold text-sm">
-                        View details
-                      </span>
-                    </a>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1 px-1">
-                    {new Date(message.created_at).toLocaleString()}
-                  </p>
-                </div>
               </div>
             );
           }
 
-          // Contract proposals (freelancer → client) — same in-place pattern.
-          if (message.kind === "contract_request" && message.request_id) {
+          // Contract proposals (freelancer → client).
+          if (message.kind === "contract_request" && message.request_id && requestsById[message.request_id]) {
             const request = requestsById[message.request_id];
-            if (request) {
-              return (
-                <div
-                  key={message.id}
-                  id={`msg-${message.id}`}
-                  className={`flex ${isOwn ? "justify-end" : "justify-start"} ${highlight}`}
-                >
+            return (
+              <div key={message.id}>
+                {dateDivider}
+                <div id={`msg-${message.id}`} className={`flex mt-3 ${highlight}`}>
                   <ContractRequestCard
                     request={request}
                     statusContent={message.content}
                     viewerIsClient={request.viewerIsClient}
                   />
                 </div>
-              );
-            }
+              </div>
+            );
           }
 
-          return (
-            <div
-              key={message.id}
-              id={`msg-${message.id}`}
-              className={`group flex ${isOwn ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`max-w-[75%] flex flex-col ${
-                  isOwn ? "items-end" : "items-start"
-                }`}
+          // Plain text / attachment / proposal_intro — grouped by sender.
+          const prevGroupable = prev && !CARD_KINDS.includes(prev.kind || "");
+          const startGroup =
+            !prev ||
+            showDivider ||
+            prev.sender_id !== message.sender_id ||
+            !prevGroupable;
+
+          const senderName = isOwn ? myName : otherName;
+          const avInitial = (senderName || "?").trim().slice(0, 1).toUpperCase();
+          const time = new Date(message.created_at).toLocaleTimeString(undefined, {
+            hour: "numeric",
+            minute: "2-digit",
+          });
+
+          const body =
+            message.kind === "proposal_intro" ? (
+              <>
+                <p className="whitespace-pre-wrap break-words text-sm text-foreground">
+                  {renderRich(message.content)}
+                </p>
+                {proposalDetailsHref && (
+                  <a
+                    href={proposalDetailsHref}
+                    className="mt-2 w-full max-w-sm rounded-xl bg-secondary/60 border-l-4 border-primary px-4 py-3 block hover:bg-secondary"
+                  >
+                    <span className="text-primary font-semibold text-sm">
+                      View details
+                    </span>
+                  </a>
+                )}
+              </>
+            ) : message.attachment_url ? (
+              <a
+                href={message.attachment_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 hover:bg-secondary max-w-sm"
               >
-                <p className="text-xs text-muted-foreground mb-1 px-1">
-                  {isOwn ? myName : otherName}
-                </p>
-                <div className={`flex items-center gap-1.5 ${isOwn ? "flex-row-reverse" : ""}`}>
-                  <div
-                    className={`rounded-2xl px-4 py-3 ${highlight} ${
-                      isOwn
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-secondary-foreground"
-                    }`}
-                  >
-                    {message.attachment_url ? (
-                      <a
-                        href={message.attachment_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 underline break-all"
-                      >
-                        <span aria-hidden>📎</span>
-                        {message.attachment_name || "Attachment"}
-                      </a>
-                    ) : (
-                      <p className="whitespace-pre-wrap break-words">
-                        {renderRich(message.content)}
-                      </p>
-                    )}
-                  </div>
-                  {/* Save star (hover) */}
-                  <button
-                    type="button"
-                    onClick={() => toggleStar(message)}
-                    title={saved.has(message.id) ? "Unsave message" : "Save message"}
-                    className={`text-sm transition ${
-                      saved.has(message.id)
-                        ? "text-amber-500"
-                        : "text-muted-foreground opacity-0 group-hover:opacity-100"
-                    }`}
-                  >
-                    {saved.has(message.id) ? "⭐" : "☆"}
-                  </button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1 px-1">
-                  {new Date(message.created_at).toLocaleString()}
-                  {isOwn && i === lastReadOwnIdx && (
-                    <span className="ml-1.5 text-primary">· Seen</span>
+                <span className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center shrink-0 text-lg">
+                  📄
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-foreground truncate">
+                    {message.attachment_name || "Attachment"}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    Attachment
+                  </span>
+                </span>
+              </a>
+            ) : (
+              <p className="whitespace-pre-wrap break-words text-sm text-foreground">
+                {renderRich(message.content)}
+              </p>
+            );
+
+          return (
+            <div key={message.id}>
+              {dateDivider}
+              <div
+                id={`msg-${message.id}`}
+                className={`group flex gap-3 ${startGroup ? "mt-4" : "mt-1"} ${highlight}`}
+              >
+                {/* Avatar column (only on the first message of a group) */}
+                <div className="w-8 shrink-0">
+                  {startGroup && (
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                        isOwn
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary text-foreground"
+                      }`}
+                    >
+                      {avInitial}
+                    </div>
                   )}
-                </p>
+                </div>
+                <div className="min-w-0 flex-1">
+                  {startGroup && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-foreground">
+                        {senderName}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{time}</span>
+                    </div>
+                  )}
+                  <div className="flex items-start gap-1.5">
+                    <div className="min-w-0">{body}</div>
+                    <button
+                      type="button"
+                      onClick={() => toggleStar(message)}
+                      title={saved.has(message.id) ? "Unsave message" : "Save message"}
+                      className={`text-sm shrink-0 transition ${
+                        saved.has(message.id)
+                          ? "text-amber-500"
+                          : "text-muted-foreground opacity-0 group-hover:opacity-100"
+                      }`}
+                    >
+                      {saved.has(message.id) ? "⭐" : "☆"}
+                    </button>
+                  </div>
+                  {isOwn && i === lastReadOwnIdx && (
+                    <span className="text-xs text-primary">· Seen</span>
+                  )}
+                </div>
               </div>
             </div>
           );
