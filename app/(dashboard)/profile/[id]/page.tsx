@@ -280,10 +280,13 @@ export default async function PublicProfilePage({
   // signed-in user. The owner always sees their own profile. Discoverability
   // (talent directory, search, sitemap) is handled separately.
   const visibility = (profile.profile_visibility as string) || "public";
-  // "private" = the owner ONLY (nobody else, signed in or not).
-  // "users"   = any signed-in Xwork user (logged-out visitors are blocked).
-  const privateOnly = visibility === "private";
-  if (!owner && visibility !== "public" && (privateOnly || !user)) {
+  // Both "private" and "users" are viewable by any SIGNED-IN Xwork user via the
+  // direct link (this covers a client the freelancer applied to — they're signed
+  // in and hold the link). Signed-out visitors are blocked. The difference is
+  // discovery: "private" is hidden from the talent directory/search/sitemap,
+  // while "users" is still listed to signed-in members. (Discovery is enforced
+  // in /freelancers, the dashboard talent rail, and the sitemap.)
+  if (!owner && visibility !== "public" && !user) {
     return (
       <main className="min-h-screen px-4 lg:px-12 py-8 w-full">
         <div className="max-w-xl mx-auto rounded-2xl border border-border bg-card p-8 text-center">
@@ -292,18 +295,15 @@ export default async function PublicProfilePage({
             This profile is private
           </h1>
           <p className="text-muted-foreground mt-2">
-            {privateOnly
-              ? "This member has set their profile to private, so it isn't viewable."
-              : "This member shares their profile only with signed-in Xwork users. Please sign in to view it."}
+            This member shares their profile only with signed-in Xwork users.
+            Please sign in to view it.
           </p>
-          {!privateOnly && !user && (
-            <Link
-              href={`/login?redirect=/profile/${id}`}
-              className="inline-block mt-5 bg-primary text-primary-foreground px-6 py-2.5 rounded-full font-semibold hover:opacity-90"
-            >
-              Sign in
-            </Link>
-          )}
+          <Link
+            href={`/login?redirect=/profile/${id}`}
+            className="inline-block mt-5 bg-primary text-primary-foreground px-6 py-2.5 rounded-full font-semibold hover:opacity-90"
+          >
+            Sign in
+          </Link>
         </div>
       </main>
     );
