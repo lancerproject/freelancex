@@ -280,7 +280,10 @@ export default async function PublicProfilePage({
   // signed-in user. The owner always sees their own profile. Discoverability
   // (talent directory, search, sitemap) is handled separately.
   const visibility = (profile.profile_visibility as string) || "public";
-  if (!owner && visibility !== "public" && !user) {
+  // "private" = the owner ONLY (nobody else, signed in or not).
+  // "users"   = any signed-in Xwork user (logged-out visitors are blocked).
+  const privateOnly = visibility === "private";
+  if (!owner && visibility !== "public" && (privateOnly || !user)) {
     return (
       <main className="min-h-screen px-4 lg:px-12 py-8 w-full">
         <div className="max-w-xl mx-auto rounded-2xl border border-border bg-card p-8 text-center">
@@ -289,15 +292,18 @@ export default async function PublicProfilePage({
             This profile is private
           </h1>
           <p className="text-muted-foreground mt-2">
-            This member shares their profile only with signed-in Xwork users.
-            Please sign in to view it.
+            {privateOnly
+              ? "This member has set their profile to private, so it isn't viewable."
+              : "This member shares their profile only with signed-in Xwork users. Please sign in to view it."}
           </p>
-          <Link
-            href={`/login?redirect=/profile/${id}`}
-            className="inline-block mt-5 bg-primary text-primary-foreground px-6 py-2.5 rounded-full font-semibold hover:opacity-90"
-          >
-            Sign in
-          </Link>
+          {!privateOnly && !user && (
+            <Link
+              href={`/login?redirect=/profile/${id}`}
+              className="inline-block mt-5 bg-primary text-primary-foreground px-6 py-2.5 rounded-full font-semibold hover:opacity-90"
+            >
+              Sign in
+            </Link>
+          )}
         </div>
       </main>
     );
